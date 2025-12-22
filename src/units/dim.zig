@@ -88,11 +88,13 @@ pub const Dim = struct {
         if (times == 0) return Self.initDimensionless();
         var res = Self.initDimensionless();
         if (times > 0) {
-            inline for (0..times) |_| {
+            const i: usize = @intCast(times);
+            inline for (0..i) |_| {
                 res.addInPlace(self);
             }
         } else {
-            inline for (0..-times) |_| {
+            const i: usize = @intCast(-times);
+            inline for (0..i) |_| {
                 res.subInPlace(self);
             }
         }
