@@ -1,75 +1,87 @@
 const std = @import("std");
-const testing = std.testing;
 const dim = @import("dim.zig");
 const Dim = dim.Dim;
 const Unit = @import("unit.zig").Unit;
 
-fn defUnitFromUnit(rootUnit: anytype, conversionScale: f64, symbole: []const u8) @TypeOf(rootUnit) {
-    return Unit(rootUnit.dim()).init(conversionScale * rootUnit.scale, symbole);
+fn defUnitFromUnit(
+    comptime root: Unit,
+    conversion_scale: f64,
+    symbol: []const u8,
+) Unit {
+    if (root.offset != 0.0) {
+        @compileError(
+            "defUnitFromUnit() cannot be used with affine units (non-zero offset).",
+        );
+    }
+    return Unit.init(root.dim, conversion_scale * root.scale, symbol);
 }
 
 // Length
 //
 
-pub const m = Unit(dim.length).init(1, "m");
-pub const cm = Unit(dim.length).init(0.01, "cm");
-pub const mm = Unit(dim.length).init(0.001, "mm");
-pub const um = Unit(dim.length).init(0.000001, "um");
-pub const nm = Unit(dim.length).init(0.000000001, "nm");
-pub const AA = defUnitFromUnit(nm, 0.1, "AA");
+pub const m: Unit = Unit.init(dim.length, 1.0, "m");
+pub const cm: Unit = Unit.init(dim.length, 0.01, "cm");
+pub const mm: Unit = Unit.init(dim.length, 0.001, "mm");
+pub const um: Unit = Unit.init(dim.length, 0.000_001, "um");
+pub const nm: Unit = Unit.init(dim.length, 0.000_000_001, "nm");
+pub const AA: Unit = defUnitFromUnit(nm, 0.1, "AA");
 
 // Area
 //
 
-pub const ha = Unit(dim.length.addInPlace(dim.length)).init(10000, "ha");
+pub const ha: Unit = Unit.init(dim.length.add(dim.length), 10_000.0, "ha");
 
 // Volume
 //
 
-pub const l = Unit(dim.length.addInPlace(dim.length).addInPlace(dim.length)).init(0.001, "l");
+pub const l: Unit = Unit.init(
+    dim.length.add(dim.length).add(dim.length),
+    0.001,
+    "l",
+);
 
-// Angluar
+// Angular
 //
 
-pub const rad = Unit(Dim.initDimensionless()).init(1, "rad");
-pub const deg = defUnitFromUnit(rad, std.math.pi / 180, "deg");
-pub const hourangle = defUnitFromUnit(deg, 15, "hourangle");
-pub const arcmin = defUnitFromUnit(deg, 1.0 / 60.0, "arcmin");
-pub const arcsec = defUnitFromUnit(deg, 1.0 / 3600.0, "arcsec");
-pub const mas = defUnitFromUnit(arcsec, 0.001, "mas");
-pub const uas = defUnitFromUnit(arcsec, 0.000001, "uas");
-pub const sr = Unit(Dim.initDimensionless()).init(1, "sr");
+pub const rad: Unit = Unit.init(Dim.initDimensionless(), 1.0, "rad");
+pub const deg: Unit = defUnitFromUnit(rad, std.math.pi / 180.0, "deg");
+pub const hourangle: Unit = defUnitFromUnit(deg, 15.0, "hourangle");
+pub const arcmin: Unit = defUnitFromUnit(deg, 1.0 / 60.0, "arcmin");
+pub const arcsec: Unit = defUnitFromUnit(deg, 1.0 / 3600.0, "arcsec");
+pub const mas: Unit = defUnitFromUnit(arcsec, 0.001, "mas");
+pub const uas: Unit = defUnitFromUnit(arcsec, 0.000_001, "uas");
+pub const sr: Unit = Unit.init(Dim.initDimensionless(), 1.0, "sr");
 
 // Time
 //
 
-pub const s = Unit(dim.time).init(1, "s");
-pub const min = defUnitFromUnit(s, 60, "min");
-pub const h = defUnitFromUnit(min, 60, "h");
-pub const d = defUnitFromUnit(h, 24, "day");
-pub const sday = defUnitFromUnit(s, 86164.09053, "sday");
-pub const yr = defUnitFromUnit(d, 365.25, "yr");
+pub const s: Unit = Unit.init(dim.time, 1.0, "s");
+pub const min: Unit = defUnitFromUnit(s, 60.0, "min");
+pub const h: Unit = defUnitFromUnit(min, 60.0, "h");
+pub const d: Unit = defUnitFromUnit(h, 24.0, "day");
+pub const sday: Unit = defUnitFromUnit(s, 86_164.090_53, "sday");
+pub const yr: Unit = defUnitFromUnit(d, 365.25, "yr");
 
 // Frequency
 //
 
-const freqDim = Dim.initDimensionless().sub(dim.time);
-pub const Hz = Unit(freqDim).init(1, "Hz");
+const freq_dim: Dim = Dim.initDimensionless().sub(dim.time);
+pub const Hz: Unit = Unit.init(freq_dim, 1.0, "Hz");
 
 // Mass
 //
 
-pub const kg = Unit(dim.mass).init(1, "kg");
-pub const g = defUnitFromUnit(kg, 0.001, "g");
-pub const t = defUnitFromUnit(kg, 1000, "t");
+pub const kg: Unit = Unit.init(dim.mass, 1.0, "kg");
+pub const g: Unit = defUnitFromUnit(kg, 0.001, "g");
+pub const t: Unit = defUnitFromUnit(kg, 1000.0, "t");
 
 // Amount of substance
 //
 
-pub const mol = Unit(dim.amount).init(1, "mol");
+pub const mol: Unit = Unit.init(dim.amount, 1.0, "mol");
 
 // Temperature
 //
 
-pub const K = Unit(dim.temperature).init(1, "K");
-pub const degC = Unit(dim.temperature).initAffine(1, 273.15, "degC");
+pub const K: Unit = Unit.init(dim.temperature, 1.0, "K");
+pub const degC: Unit = Unit.initAffine(dim.temperature, 1.0, 273.15, "degC");
