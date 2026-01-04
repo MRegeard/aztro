@@ -1,5 +1,7 @@
 const std = @import("std");
 const testing = std.testing;
+const fmt = std.fmt;
+const math = std.math;
 
 pub const length: Dim = .{ .l = 1, .m = 0, .t = 0, .i = 0, .th = 0, .n = 0, .j = 0 };
 pub const mass: Dim = .{ .l = 0, .m = 1, .t = 0, .i = 0, .th = 0, .n = 0, .j = 0 };
