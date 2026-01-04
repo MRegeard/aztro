@@ -142,11 +142,16 @@ pub fn Fraction(comptime T: type) type {
 
         pub fn inverse(self: Self) Error!Self {
             if (self.num == 0) return Error.ZeroDenominator;
+            if (self.num < 0) return .init(-self.denum, -self.num);
             return .init(self.denum, self.num);
         }
 
         pub fn inverseInPlace(self: *Self) Error!void {
             if (self.num == 0) return Error.ZeroDenominator;
+            if (self.num < 0) {
+                self.num = -self.num;
+                self.denum = -self.denum;
+            }
             const temp = self.num;
             self.num = self.denum;
             self.denum = temp;
@@ -163,6 +168,16 @@ pub fn Fraction(comptime T: type) type {
             self.denum = try mulChecked(self.denum, other.denum);
         }
 
+        pub fn mulValue(self: Self, value: T) Error!Self {
+            const fracInt = try init(value, 1);
+            return try self.mul(fracInt);
+        }
+
+        pub fn mulValueInPlace(self: *Self, value: T) Error!void {
+            const fracInt = try init(value, 1);
+            try self.mulInPlace(fracInt);
+        }
+
         pub fn div(self: Self, other: Self) Error!Self {
             return try self.mul(try other.inverse());
         }
@@ -171,9 +186,35 @@ pub fn Fraction(comptime T: type) type {
             try self.mulInPlace(try other.inverse());
         }
 
+        pub fn divValue(self: Self, value: T) Error!Self {
+            const fracInt = try init(value, 1);
+            return try self.div(fracInt);
+        }
+
+        pub fn divValueInPlace(self: *Self, value: T) Error!void {
+            const fracInt = try init(value, 1);
+            return try self.divInPlace(fracInt);
+        }
+
         pub fn isInt(self: Self) bool {
-            if (self.reduce().denum == 1) return true;
-            return false;
+            return self.reduce().denum == 1;
+        }
+
+        pub fn sign(self: Self) T {
+            return math.sign(self.num) * math.sign(self.denum);
+        }
+
+        pub fn eql(self: Self, other: Self) bool {
+            return (self.sign() == other.sign()) and (@abs(self.num) == @abs(other.num)) and (@abs(self.denum) == @abs(other.denum));
+        }
+
+        pub fn abs(self: Self) Self {
+            return Self{ .num = self.num * math.sign(self.num), .denum = self.denum * math.sign(self.denum) };
+        }
+
+        pub fn absInPlace(self: *Self) void {
+            self.num *= math.sign(self.num);
+            self.denum *= math.sign(self.denum);
         }
     };
 }
@@ -309,7 +350,7 @@ test "subValue" {
     try testing.expectEqual(try Fraci32.init(4, 3), fracSubValue2);
 }
 
-test "SubValueInPlace" {
+test "subValueInPlace" {
     var frac = try Fraci32.init(1, 3);
     try frac.subValueInPlace(1);
     try testing.expectEqual(try Fraci32.init(-2, 3), frac);
@@ -335,12 +376,28 @@ test "inverse" {
     const frac = try Fraci32.init(5, 12);
     const fracInverse = try frac.inverse();
     try testing.expectEqual(try Fraci32.init(12, 5), fracInverse);
+
+    const frac2 = try Fraci32.init(-2, 4);
+    const fracInverseNeg = try frac2.inverse();
+    try testing.expectEqual(try Fraci32.init(-4, 2), fracInverseNeg);
+
+    const frac3 = try Fraci32.init(-3, -3);
+    const fracInverseNegAll = try frac3.inverse();
+    try testing.expectEqual(try Fraci32.init(3, 3), fracInverseNegAll);
 }
 
 test "inverseInPlace" {
     var frac = try Fraci32.init(-5, 11);
     try frac.inverseInPlace();
-    try testing.expectEqual(try Fraci32.init(11, -5), frac);
+    try testing.expectEqual(try Fraci32.init(-11, 5), frac);
+
+    var frac2 = try Fraci32.init(-2, 4);
+    try frac2.inverseInPlace();
+    try testing.expectEqual(try Fraci32.init(-4, 2), frac2);
+
+    frac2.denum = -frac2.denum;
+    try frac2.inverseInPlace();
+    try testing.expectEqual(try Fraci32.init(2, 4), frac2);
 }
 
 test "mul" {
@@ -367,6 +424,24 @@ test "mulInPlace" {
     try testing.expectEqual(try Fraci32.init(-4, 100), frac3);
 }
 
+test "mulValue" {
+    const frac = try Fraci32.init(4, 12);
+    const fracMulValue = try frac.mulValue(3);
+    try testing.expectEqual(try Fraci32.init(12, 12), fracMulValue);
+
+    const fracMulValue2 = try frac.mulValue(-2);
+    try testing.expectEqual(try Fraci32.init(-8, 12), fracMulValue2);
+}
+
+test "mulValueInPlace" {
+    var frac = try Fraci32.init(4, 12);
+    try frac.mulValueInPlace(3);
+    try testing.expectEqual(try Fraci32.init(12, 12), frac);
+
+    try frac.mulValueInPlace(-2);
+    try testing.expectEqual(try Fraci32.init(-24, 12), frac);
+}
+
 test "div" {
     const frac1 = try Fraci32.init(5, 3);
     const frac2 = try Fraci32.init(4, 2);
@@ -381,6 +456,24 @@ test "divInPlace" {
     try testing.expectEqual(try Fraci32.init(20, 6), frac1);
 }
 
+test "divValue" {
+    const frac = try Fraci32.init(4, 6);
+    const fracDivValue = try frac.divValue(2);
+    try testing.expectEqual(try Fraci32.init(4, 12), fracDivValue);
+
+    const fracDivValue2 = try frac.divValue(-2);
+    try testing.expectEqual(try Fraci32.init(-4, 12), fracDivValue2);
+}
+
+test "divValueInPlace" {
+    var frac = try Fraci32.init(4, 6);
+    try frac.divValueInPlace(2);
+    try testing.expectEqual(try Fraci32.init(4, 12), frac);
+
+    try frac.divValueInPlace(-2);
+    try testing.expectEqual(try Fraci32.init(-4, 24), frac);
+}
+
 test "isInt" {
     const frac1 = try Fraci32.init(4, 2);
     const frac2 = try Fraci32.init(1, 1);
@@ -388,4 +481,56 @@ test "isInt" {
     try testing.expectEqual(true, frac1.isInt());
     try testing.expectEqual(true, frac2.isInt());
     try testing.expectEqual(false, frac3.isInt());
+}
+
+test "sign" {
+    var frac = try Fraci32.init(4, 4);
+    try testing.expect(frac.sign() == 1);
+    frac.num = -frac.num;
+    try testing.expect(frac.sign() == -1);
+    frac.denum = -frac.denum;
+    try testing.expect(frac.sign() == 1);
+    frac.num = 0;
+    try testing.expect(frac.sign() == 0);
+}
+
+test "eql" {
+    const frac1 = try Fraci32.init(4, 5);
+    const frac2 = try Fraci32.init(4, 5);
+    try testing.expect(frac1.eql(frac2) == true);
+
+    const frac3 = try Fraci32.init(-4, 5);
+    try testing.expect(frac1.eql(frac3) == false);
+
+    const frac4 = try Fraci32.init(2, 6);
+    try testing.expect(frac4.eql(frac2) == false);
+    try testing.expect(frac4.eql(frac3) == false);
+}
+
+test "abs" {
+    const frac = try Fraci32.init(3, 8);
+    const fracAbs = frac.abs();
+    try testing.expectEqual(try Fraci32.init(3, 8), fracAbs);
+
+    const frac2 = try Fraci32.init(-3, 8);
+    const fracAbs2 = frac2.abs();
+    try testing.expectEqual(try Fraci32.init(3, 8), fracAbs2);
+
+    const frac3 = try Fraci32.init(-3, -8);
+    const fracAbs3 = frac3.abs();
+    try testing.expectEqual(try Fraci32.init(3, 8), fracAbs3);
+}
+
+test "absInPlace" {
+    var frac = try Fraci32.init(3, 8);
+    frac.absInPlace();
+    try testing.expectEqual(try Fraci32.init(3, 8), frac);
+
+    var frac2 = try Fraci32.init(-3, 8);
+    frac2.absInPlace();
+    try testing.expectEqual(try Fraci32.init(3, 8), frac2);
+
+    var frac3 = try Fraci32.init(-3, -8);
+    frac3.absInPlace();
+    try testing.expectEqual(try Fraci32.init(3, 8), frac3);
 }
