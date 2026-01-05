@@ -2,6 +2,11 @@ const std = @import("std");
 const testing = std.testing;
 const math = std.math;
 
+pub const FractionError = error{
+    Overflow,
+    ZeroDenominator,
+};
+
 pub fn Fraction(comptime T: type) type {
     comptime {
         const typeInfo = @typeInfo(T);
@@ -19,10 +24,7 @@ pub fn Fraction(comptime T: type) type {
         num: T,
         denum: T,
 
-        pub const Error = error{
-            ZeroDenominator,
-            Overflow,
-        };
+        pub const Error = FractionError;
 
         pub fn init(num: T, denum: T) Error!Self {
             if (denum == 0) return Error.ZeroDenominator;
@@ -209,11 +211,16 @@ pub fn Fraction(comptime T: type) type {
         }
 
         pub fn eql(self: Self, other: Self) bool {
-            return (self.sign() == other.sign()) and (@abs(self.num) == @abs(other.num)) and (@abs(self.denum) == @abs(other.denum));
+            return (self.sign() == other.sign()) and
+                (@abs(self.num) == @abs(other.num)) and
+                (@abs(self.denum) == @abs(other.denum));
         }
 
         pub fn abs(self: Self) Self {
-            return Self{ .num = self.num * math.sign(self.num), .denum = self.denum * math.sign(self.denum) };
+            return Self{
+                .num = self.num * math.sign(self.num),
+                .denum = self.denum * math.sign(self.denum),
+            };
         }
 
         pub fn absInPlace(self: *Self) void {
