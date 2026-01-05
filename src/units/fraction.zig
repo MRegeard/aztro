@@ -30,17 +30,13 @@ pub fn Fraction(comptime T: type) type {
         pub fn init(num: T, denum: T) Error!Self {
             if (denum == 0) return Error.ZeroDenominator;
             if (num < 0 and denum < 0) {
-                return .{ .num = num, .denum = denum };
+                return (Self{ .num = num, .denum = denum }).reduce();
             }
-            return .{ .num = num, .denum = denum };
+            return (Self{ .num = num, .denum = denum }).reduce();
         }
 
         pub fn initInt(value: T) Self {
             return .{ .num = value, .denum = 1 };
-        }
-
-        pub fn initReduce(num: T, denum: T) Error!Self {
-            return (try Self.init(num, denum)).reduce();
         }
 
         fn initUnchecked(num: T, denum: T) Self {
@@ -222,6 +218,10 @@ pub fn Fraction(comptime T: type) type {
             return math.sign(self.num) * math.sign(self.denum);
         }
 
+        pub fn eqlScalar(self: Self, value: T) bool {
+            return self.eql(Self.initInt(value));
+        }
+
         pub fn eql(self: Self, other: Self) bool {
             return (self.sign() == other.sign()) and
                 (@abs(self.num) == @abs(other.num)) and
@@ -247,13 +247,8 @@ test "init" {
     try testing.expectEqual(2, frac.denum);
     try testing.expectError(error.ZeroDenominator, Fraci32.init(2, 0));
     const frac2 = try Fraci32.init(-2, 4);
-    try testing.expectEqual(-2, frac2.num);
-    try testing.expectEqual(4, frac2.denum);
-}
-
-test "initReduce" {
-    const frac = try Fraci32.initReduce(8, 12);
-    try testing.expectEqual(try Fraci32.init(2, 3), frac);
+    try testing.expectEqual(-1, frac2.num);
+    try testing.expectEqual(2, frac2.denum);
 }
 
 test "reduce" {
@@ -553,4 +548,11 @@ test "absInPlace" {
     var frac3 = try Fraci32.init(-3, -8);
     frac3.absInPlace();
     try testing.expectEqual(try Fraci32.init(3, 8), frac3);
+}
+
+test "eqlInt" {
+    const frac = try Fraci32.init(4, 2);
+    try testing.expect(frac.eqlScalar(2) == true);
+    const frac2 = try Fraci32.init(3, 2);
+    try testing.expect(frac2.eqlScalar(3) == false);
 }
