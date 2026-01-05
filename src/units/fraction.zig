@@ -32,6 +32,10 @@ pub fn Fraction(comptime T: type) type {
             return .{ .num = num, .denum = denum };
         }
 
+        pub fn initInt(value: T) Self {
+            return .{ .num = value, .denum = 1 };
+        }
+
         pub fn initReduce(num: T, denum: T) Error!Self {
             var frac = try init(num, denum);
             frac.reduceInPlace();
@@ -113,11 +117,11 @@ pub fn Fraction(comptime T: type) type {
         }
 
         pub fn sub(self: Self, other: Self) Error!Self {
-            return add(self, try other.negate());
+            return add(self, try other.neg());
         }
 
         pub fn subInPlace(self: *Self, other: Self) Error!void {
-            return addInPlace(self, try other.negate());
+            return addInPlace(self, try other.neg());
         }
 
         pub fn subValue(self: Self, value: T) Error!Self {
@@ -130,23 +134,23 @@ pub fn Fraction(comptime T: type) type {
             try self.subInPlace(fracInt);
         }
 
-        pub fn negate(self: Self) Error!Self {
+        pub fn neg(self: Self) Error!Self {
             if (self.num == math.minInt(T)) return Error.Overflow;
             return .init(-self.num, self.denum);
         }
 
-        pub fn negateInPlace(self: *Self) Error!void {
+        pub fn negInPlace(self: *Self) Error!void {
             if (self.num == math.minInt(T)) return Error.Overflow;
             self.num = -self.num;
         }
 
-        pub fn inverse(self: Self) Error!Self {
+        pub fn inv(self: Self) Error!Self {
             if (self.num == 0) return Error.ZeroDenominator;
             if (self.num < 0) return .init(-self.denum, -self.num);
             return .init(self.denum, self.num);
         }
 
-        pub fn inverseInPlace(self: *Self) Error!void {
+        pub fn invInPlace(self: *Self) Error!void {
             if (self.num == 0) return Error.ZeroDenominator;
             if (self.num < 0) {
                 self.num = -self.num;
@@ -179,11 +183,11 @@ pub fn Fraction(comptime T: type) type {
         }
 
         pub fn div(self: Self, other: Self) Error!Self {
-            return try self.mul(try other.inverse());
+            return try self.mul(try other.inv());
         }
 
         pub fn divInPlace(self: *Self, other: Self) Error!void {
-            try self.mulInPlace(try other.inverse());
+            try self.mulInPlace(try other.inv());
         }
 
         pub fn divValue(self: Self, value: T) Error!Self {
@@ -360,43 +364,43 @@ test "subValueInPlace" {
     try testing.expectEqual(try Fraci32.init(4, 3), frac2);
 }
 
-test "negate" {
+test "neg" {
     const frac = try Fraci32.init(1, 4);
-    const fracNeg = try frac.negate();
+    const fracNeg = try frac.neg();
     try testing.expectEqual(try Fraci32.init(-1, 4), fracNeg);
 }
 
-test "negateInPlace" {
+test "negInPlace" {
     var frac = try Fraci32.init(3, 5);
-    try frac.negateInPlace();
+    try frac.negInPlace();
     try testing.expectEqual(try Fraci32.init(-3, 5), frac);
 }
 
-test "inverse" {
+test "inv" {
     const frac = try Fraci32.init(5, 12);
-    const fracInverse = try frac.inverse();
-    try testing.expectEqual(try Fraci32.init(12, 5), fracInverse);
+    const fracinv = try frac.inv();
+    try testing.expectEqual(try Fraci32.init(12, 5), fracinv);
 
     const frac2 = try Fraci32.init(-2, 4);
-    const fracInverseNeg = try frac2.inverse();
-    try testing.expectEqual(try Fraci32.init(-4, 2), fracInverseNeg);
+    const fracinvNeg = try frac2.inv();
+    try testing.expectEqual(try Fraci32.init(-4, 2), fracinvNeg);
 
     const frac3 = try Fraci32.init(-3, -3);
-    const fracInverseNegAll = try frac3.inverse();
-    try testing.expectEqual(try Fraci32.init(3, 3), fracInverseNegAll);
+    const fracinvNegAll = try frac3.inv();
+    try testing.expectEqual(try Fraci32.init(3, 3), fracinvNegAll);
 }
 
-test "inverseInPlace" {
+test "invInPlace" {
     var frac = try Fraci32.init(-5, 11);
-    try frac.inverseInPlace();
+    try frac.invInPlace();
     try testing.expectEqual(try Fraci32.init(-11, 5), frac);
 
     var frac2 = try Fraci32.init(-2, 4);
-    try frac2.inverseInPlace();
+    try frac2.invInPlace();
     try testing.expectEqual(try Fraci32.init(-4, 2), frac2);
 
     frac2.denum = -frac2.denum;
-    try frac2.inverseInPlace();
+    try frac2.invInPlace();
     try testing.expectEqual(try Fraci32.init(2, 4), frac2);
 }
 
