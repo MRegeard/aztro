@@ -1,6 +1,7 @@
 const std = @import("std");
 const testing = std.testing;
 const math = std.math;
+const debug = std.debug;
 
 pub const FractionError = error{
     Overflow,
@@ -39,9 +40,17 @@ pub fn Fraction(comptime T: type) type {
         }
 
         pub fn initReduce(num: T, denum: T) Error!Self {
-            var frac = try init(num, denum);
-            frac.reduceInPlace();
-            return frac;
+            return (try Self.init(num, denum)).reduce();
+        }
+
+        fn initUnchecked(num: T, denum: T) Self {
+            debug.assert(denum != 0);
+            return Self{ .num = num, .denum = denum };
+        }
+
+        fn initUncheckedReduce(num: T, denum: T) Self {
+            debug.assert(denum != 0);
+            return (Self{ .num = num, .denum = denum }).reduce();
         }
 
         pub fn reduce(self: Self) Self {
@@ -96,7 +105,7 @@ pub fn Fraction(comptime T: type) type {
             const num2 = try mulChecked(other.num, self.denum);
             const denum = try mulChecked(self.denum, other.denum);
             const num = try addChecked(num1, num2);
-            return .init(num, denum);
+            return Self.initUncheckedReduce(num, denum);
         }
 
         pub fn addInPlace(self: *Self, other: Self) Error!void {
@@ -106,15 +115,16 @@ pub fn Fraction(comptime T: type) type {
             const num = try addChecked(num1, num2);
             self.num = num;
             self.denum = denum;
+            self.reduceInPlace();
         }
 
-        pub fn addValue(self: Self, value: T) Error!Self {
-            const fracInt = try init(value, 1);
+        pub fn addScalar(self: Self, value: T) Error!Self {
+            const fracInt = Self.initInt(value);
             return try self.add(fracInt);
         }
 
-        pub fn addValueInPlace(self: *Self, value: T) Error!void {
-            const fracInt = try init(value, 1);
+        pub fn addScalarInPlace(self: *Self, value: T) Error!void {
+            const fracInt = Self.initInt(value);
             try self.addInPlace(fracInt);
         }
 
@@ -126,19 +136,19 @@ pub fn Fraction(comptime T: type) type {
             return addInPlace(self, try other.neg());
         }
 
-        pub fn subValue(self: Self, value: T) Error!Self {
-            const fracInt = try init(value, 1);
+        pub fn subScalar(self: Self, value: T) Error!Self {
+            const fracInt = Self.initInt(value);
             return try self.sub(fracInt);
         }
 
-        pub fn subValueInPlace(self: *Self, value: T) Error!void {
-            const fracInt = try init(value, 1);
+        pub fn subScalarInPlace(self: *Self, value: T) Error!void {
+            const fracInt = Self.initInt(value);
             try self.subInPlace(fracInt);
         }
 
         pub fn neg(self: Self) Error!Self {
             if (self.num == math.minInt(T)) return Error.Overflow;
-            return .init(-self.num, self.denum);
+            return Self{ .num = -self.num, .denum = self.denum };
         }
 
         pub fn negInPlace(self: *Self) Error!void {
@@ -148,8 +158,8 @@ pub fn Fraction(comptime T: type) type {
 
         pub fn inv(self: Self) Error!Self {
             if (self.num == 0) return Error.ZeroDenominator;
-            if (self.num < 0) return .init(-self.denum, -self.num);
-            return .init(self.denum, self.num);
+            if (self.num < 0) return Self.initUncheckedReduce(-self.denum, -self.num);
+            return Self.initUncheckedReduce(self.denum, self.num);
         }
 
         pub fn invInPlace(self: *Self) Error!void {
@@ -161,26 +171,28 @@ pub fn Fraction(comptime T: type) type {
             const temp = self.num;
             self.num = self.denum;
             self.denum = temp;
+            self.reduceInPlace();
         }
 
         pub fn mul(self: Self, other: Self) Error!Self {
             const num = try mulChecked(self.num, other.num);
             const denum = try mulChecked(self.denum, other.denum);
-            return .init(num, denum);
+            return Self.initUncheckedReduce(num, denum);
         }
 
         pub fn mulInPlace(self: *Self, other: Self) Error!void {
             self.num = try mulChecked(self.num, other.num);
             self.denum = try mulChecked(self.denum, other.denum);
+            self.reduceInPlace();
         }
 
-        pub fn mulValue(self: Self, value: T) Error!Self {
-            const fracInt = try init(value, 1);
+        pub fn mulScalar(self: Self, value: T) Error!Self {
+            const fracInt = Self.initInt(value);
             return try self.mul(fracInt);
         }
 
-        pub fn mulValueInPlace(self: *Self, value: T) Error!void {
-            const fracInt = try init(value, 1);
+        pub fn mulScalarInPlace(self: *Self, value: T) Error!void {
+            const fracInt = Self.initInt(value);
             try self.mulInPlace(fracInt);
         }
 
@@ -192,13 +204,13 @@ pub fn Fraction(comptime T: type) type {
             try self.mulInPlace(try other.inv());
         }
 
-        pub fn divValue(self: Self, value: T) Error!Self {
-            const fracInt = try init(value, 1);
+        pub fn divScalar(self: Self, value: T) Error!Self {
+            const fracInt = Self.initInt(value);
             return try self.div(fracInt);
         }
 
-        pub fn divValueInPlace(self: *Self, value: T) Error!void {
-            const fracInt = try init(value, 1);
+        pub fn divScalarInPlace(self: *Self, value: T) Error!void {
+            const fracInt = Self.initInt(value);
             return try self.divInPlace(fracInt);
         }
 
@@ -217,10 +229,7 @@ pub fn Fraction(comptime T: type) type {
         }
 
         pub fn abs(self: Self) Self {
-            return Self{
-                .num = self.num * math.sign(self.num),
-                .denum = self.denum * math.sign(self.denum),
-            };
+            return Self.initUncheckedReduce(self.num * math.sign(self.num), self.denum * math.sign(self.denum));
         }
 
         pub fn absInPlace(self: *Self) void {
@@ -269,105 +278,105 @@ test "add" {
     const frac1 = try Fraci32.init(1, 4);
     const frac2 = try Fraci32.init(1, 6);
     const fracAdd = try frac1.add(frac2);
-    try testing.expectEqual(try Fraci32.init(10, 24), fracAdd);
+    try testing.expectEqual(try Fraci32.init(5, 12), fracAdd);
 
     const frac3 = try Fraci32.init(3, 8);
     const frac4 = try Fraci32.init(-1, 4);
     const fracAdd2 = try frac3.add(frac4);
-    try testing.expectEqual(try Fraci32.init(4, 32), fracAdd2);
+    try testing.expectEqual(try Fraci32.init(1, 8), fracAdd2);
 
     const frac5 = try Fraci32.init(1, 6);
     const frac6 = try Fraci32.init(-1, 2);
     const fracAdd3 = try frac5.add(frac6);
-    try testing.expectEqual(try Fraci32.init(-4, 12), fracAdd3);
+    try testing.expectEqual(try Fraci32.init(-1, 3), fracAdd3);
 }
 
 test "addInPlace" {
     var frac1 = try Fraci32.init(1, 4);
     const frac2 = try Fraci32.init(1, 6);
     try frac1.addInPlace(frac2);
-    try testing.expectEqual(try Fraci32.init(10, 24), frac1);
+    try testing.expectEqual(try Fraci32.init(5, 12), frac1);
 
     var frac3 = try Fraci32.init(3, 8);
     const frac4 = try Fraci32.init(-1, 4);
     try frac3.addInPlace(frac4);
-    try testing.expectEqual(try Fraci32.init(4, 32), frac3);
+    try testing.expectEqual(try Fraci32.init(1, 8), frac3);
 
     var frac5 = try Fraci32.init(1, 6);
     const frac6 = try Fraci32.init(-1, 2);
     try frac5.addInPlace(frac6);
-    try testing.expectEqual(try Fraci32.init(-4, 12), frac5);
+    try testing.expectEqual(try Fraci32.init(-1, 3), frac5);
 }
 
-test "addValue" {
+test "addScalar" {
     const frac = try Fraci32.init(2, 4);
-    const fracAddValue = try frac.addValue(2);
-    try testing.expectEqual(try Fraci32.init(10, 4), fracAddValue);
+    const fracAddScalar = try frac.addScalar(2);
+    try testing.expectEqual(try Fraci32.init(5, 2), fracAddScalar);
 
-    const fracAddValue2 = try frac.addValue(-2);
-    try testing.expectEqual(try Fraci32.init(-6, 4), fracAddValue2);
+    const fracAddScalar2 = try frac.addScalar(-2);
+    try testing.expectEqual(try Fraci32.init(-3, 2), fracAddScalar2);
 }
 
-test "addValueInPlace" {
+test "addScalarInPlace" {
     var frac = try Fraci32.init(2, 4);
-    try frac.addValueInPlace(2);
-    try testing.expectEqual(try Fraci32.init(10, 4), frac);
+    try frac.addScalarInPlace(2);
+    try testing.expectEqual(try Fraci32.init(5, 2), frac);
 
     var frac2 = try Fraci32.init(2, 4);
-    try frac2.addValueInPlace(-2);
-    try testing.expectEqual(try Fraci32.init(-6, 4), frac2);
+    try frac2.addScalarInPlace(-2);
+    try testing.expectEqual(try Fraci32.init(-3, 2), frac2);
 }
 
 test "sub" {
     const frac1 = try Fraci32.init(1, 4);
     const frac2 = try Fraci32.init(1, 6);
     const fracSub = try frac1.sub(frac2);
-    try testing.expectEqual(try Fraci32.init(2, 24), fracSub);
+    try testing.expectEqual(try Fraci32.init(1, 12), fracSub);
 
     const frac3 = try Fraci32.init(3, 8);
     const frac4 = try Fraci32.init(-1, 4);
     const fracSub2 = try frac3.sub(frac4);
-    try testing.expectEqual(try Fraci32.init(20, 32), fracSub2);
+    try testing.expectEqual(try Fraci32.init(5, 8), fracSub2);
 
     const frac5 = try Fraci32.init(1, 6);
     const frac6 = try Fraci32.init(1, 4);
     const fracSub3 = try frac5.sub(frac6);
-    try testing.expectEqual(try Fraci32.init(-2, 24), fracSub3);
+    try testing.expectEqual(try Fraci32.init(-1, 12), fracSub3);
 }
 
 test "subInPlace" {
     var frac1 = try Fraci32.init(1, 4);
     const frac2 = try Fraci32.init(1, 6);
     try frac1.subInPlace(frac2);
-    try testing.expectEqual(try Fraci32.init(2, 24), frac1);
+    try testing.expectEqual(try Fraci32.init(1, 12), frac1);
 
     var frac3 = try Fraci32.init(3, 8);
     const frac4 = try Fraci32.init(-1, 4);
     try frac3.subInPlace(frac4);
-    try testing.expectEqual(try Fraci32.init(20, 32), frac3);
+    try testing.expectEqual(try Fraci32.init(5, 8), frac3);
 
     var frac5 = try Fraci32.init(1, 6);
     const frac6 = try Fraci32.init(1, 4);
     try frac5.subInPlace(frac6);
-    try testing.expectEqual(try Fraci32.init(-2, 24), frac5);
+    try testing.expectEqual(try Fraci32.init(-1, 12), frac5);
 }
 
-test "subValue" {
+test "subScalar" {
     const frac = try Fraci32.init(1, 3);
-    const fracSubValue = try frac.subValue(1);
-    try testing.expectEqual(try Fraci32.init(-2, 3), fracSubValue);
+    const fracSubScalar = try frac.subScalar(1);
+    try testing.expectEqual(try Fraci32.init(-2, 3), fracSubScalar);
 
-    const fracSubValue2 = try frac.subValue(-1);
-    try testing.expectEqual(try Fraci32.init(4, 3), fracSubValue2);
+    const fracSubScalar2 = try frac.subScalar(-1);
+    try testing.expectEqual(try Fraci32.init(4, 3), fracSubScalar2);
 }
 
-test "subValueInPlace" {
+test "subScalarInPlace" {
     var frac = try Fraci32.init(1, 3);
-    try frac.subValueInPlace(1);
+    try frac.subScalarInPlace(1);
     try testing.expectEqual(try Fraci32.init(-2, 3), frac);
 
     var frac2 = try Fraci32.init(1, 3);
-    try frac2.subValueInPlace(-1);
+    try frac2.subScalarInPlace(-1);
     try testing.expectEqual(try Fraci32.init(4, 3), frac2);
 }
 
@@ -390,11 +399,11 @@ test "inv" {
 
     const frac2 = try Fraci32.init(-2, 4);
     const fracinvNeg = try frac2.inv();
-    try testing.expectEqual(try Fraci32.init(-4, 2), fracinvNeg);
+    try testing.expectEqual(try Fraci32.init(-2, 1), fracinvNeg);
 
     const frac3 = try Fraci32.init(-3, -3);
     const fracinvNegAll = try frac3.inv();
-    try testing.expectEqual(try Fraci32.init(3, 3), fracinvNegAll);
+    try testing.expectEqual(try Fraci32.init(1, 1), fracinvNegAll);
 }
 
 test "invInPlace" {
@@ -404,85 +413,85 @@ test "invInPlace" {
 
     var frac2 = try Fraci32.init(-2, 4);
     try frac2.invInPlace();
-    try testing.expectEqual(try Fraci32.init(-4, 2), frac2);
+    try testing.expectEqual(try Fraci32.init(-2, 1), frac2);
 
     frac2.denum = -frac2.denum;
     try frac2.invInPlace();
-    try testing.expectEqual(try Fraci32.init(2, 4), frac2);
+    try testing.expectEqual(try Fraci32.init(1, 2), frac2);
 }
 
 test "mul" {
     const frac1 = try Fraci32.init(3, 4);
     const frac2 = try Fraci32.init(2, 8);
     const fracMul = try frac1.mul(frac2);
-    try testing.expectEqual(try Fraci32.init(6, 32), fracMul);
+    try testing.expectEqual(try Fraci32.init(3, 16), fracMul);
 
     const frac3 = try Fraci32.init(-2, 10);
     const frac4 = try Fraci32.init(2, 10);
     const fracMul2 = try frac3.mul(frac4);
-    try testing.expectEqual(try Fraci32.init(-4, 100), fracMul2);
+    try testing.expectEqual(try Fraci32.init(-1, 25), fracMul2);
 }
 
 test "mulInPlace" {
     var frac1 = try Fraci32.init(3, 4);
     const frac2 = try Fraci32.init(2, 8);
     try frac1.mulInPlace(frac2);
-    try testing.expectEqual(try Fraci32.init(6, 32), frac1);
+    try testing.expectEqual(try Fraci32.init(3, 16), frac1);
 
     var frac3 = try Fraci32.init(-2, 10);
     const frac4 = try Fraci32.init(2, 10);
     try frac3.mulInPlace(frac4);
-    try testing.expectEqual(try Fraci32.init(-4, 100), frac3);
+    try testing.expectEqual(try Fraci32.init(-1, 25), frac3);
 }
 
-test "mulValue" {
+test "mulScalar" {
     const frac = try Fraci32.init(4, 12);
-    const fracMulValue = try frac.mulValue(3);
-    try testing.expectEqual(try Fraci32.init(12, 12), fracMulValue);
+    const fracMulScalar = try frac.mulScalar(3);
+    try testing.expectEqual(try Fraci32.init(1, 1), fracMulScalar);
 
-    const fracMulValue2 = try frac.mulValue(-2);
-    try testing.expectEqual(try Fraci32.init(-8, 12), fracMulValue2);
+    const fracMulScalar2 = try frac.mulScalar(-2);
+    try testing.expectEqual(try Fraci32.init(-2, 3), fracMulScalar2);
 }
 
-test "mulValueInPlace" {
+test "mulScalarInPlace" {
     var frac = try Fraci32.init(4, 12);
-    try frac.mulValueInPlace(3);
-    try testing.expectEqual(try Fraci32.init(12, 12), frac);
+    try frac.mulScalarInPlace(3);
+    try testing.expectEqual(try Fraci32.init(1, 1), frac);
 
-    try frac.mulValueInPlace(-2);
-    try testing.expectEqual(try Fraci32.init(-24, 12), frac);
+    try frac.mulScalarInPlace(-2);
+    try testing.expectEqual(try Fraci32.init(-2, 1), frac);
 }
 
 test "div" {
     const frac1 = try Fraci32.init(5, 3);
     const frac2 = try Fraci32.init(4, 2);
     const fracDiv = try frac1.div(frac2);
-    try testing.expectEqual(try Fraci32.init(10, 12), fracDiv);
+    try testing.expectEqual(try Fraci32.init(5, 6), fracDiv);
 }
 
 test "divInPlace" {
     var frac1 = try Fraci32.init(4, 2);
     const frac2 = try Fraci32.init(3, 5);
     try frac1.divInPlace(frac2);
-    try testing.expectEqual(try Fraci32.init(20, 6), frac1);
+    try testing.expectEqual(try Fraci32.init(10, 3), frac1);
 }
 
-test "divValue" {
+test "divScalar" {
     const frac = try Fraci32.init(4, 6);
-    const fracDivValue = try frac.divValue(2);
-    try testing.expectEqual(try Fraci32.init(4, 12), fracDivValue);
+    const fracDivScalar = try frac.divScalar(2);
+    try testing.expectEqual(try Fraci32.init(1, 3), fracDivScalar);
 
-    const fracDivValue2 = try frac.divValue(-2);
-    try testing.expectEqual(try Fraci32.init(-4, 12), fracDivValue2);
+    const fracDivScalar2 = try frac.divScalar(-2);
+    try testing.expectEqual(try Fraci32.init(-1, 3), fracDivScalar2);
 }
 
-test "divValueInPlace" {
+test "divScalarInPlace" {
     var frac = try Fraci32.init(4, 6);
-    try frac.divValueInPlace(2);
-    try testing.expectEqual(try Fraci32.init(4, 12), frac);
+    try frac.divScalarInPlace(2);
+    try testing.expectEqual(try Fraci32.init(1, 3), frac);
 
-    try frac.divValueInPlace(-2);
-    try testing.expectEqual(try Fraci32.init(-4, 24), frac);
+    try frac.divScalarInPlace(-2);
+    try testing.expectEqual(try Fraci32.init(-1, 6), frac);
 }
 
 test "isInt" {
