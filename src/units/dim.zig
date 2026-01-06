@@ -124,6 +124,22 @@ pub const Dim = struct {
         }
     }
 
+    pub fn mulFraction(self: Self, frac: Fractioni32) FractionError!Self {
+        var res = self;
+        inline for (@typeInfo(Self).@"struct".fields) |field| {
+            const name = field.name;
+            @field(res, name) = try @field(res, name).mul(frac);
+        }
+        return res;
+    }
+
+    pub fn mulFractionInPlace(self: *Self, frac: Fractioni32) FractionError!void {
+        inline for (@typeInfo(Self).@"struct".fields) |field| {
+            const name = field.name;
+            try @field(self.*, name).mulInPlace(frac);
+        }
+    }
+
     pub fn divScalar(self: Self, value: i32) FractionError!Self {
         var res = self;
         inline for (@typeInfo(Self).@"struct".fields) |field| {
@@ -137,6 +153,22 @@ pub const Dim = struct {
         inline for (@typeInfo(Self).@"struct".fields) |field| {
             const name = field.name;
             try @field(self.*, name).divScalarInPlace(value);
+        }
+    }
+
+    pub fn divFraction(self: Self, frac: Fractioni32) FractionError!Self {
+        var res = self;
+        inline for (@typeInfo(Self).@"struct".fields) |field| {
+            const name = field.name;
+            @field(res, name) = try @field(res, name).div(frac);
+        }
+        return res;
+    }
+
+    pub fn divFractionInPlace(self: *Self, frac: Fractioni32) FractionError!void {
+        inline for (@typeInfo(Self).@"struct".fields) |field| {
+            const name = field.name;
+            try @field(self.*, name).divInPlace(frac);
         }
     }
 };
@@ -240,6 +272,18 @@ test "mulScalarInPlace" {
     try testing.expect(massTest2.l.eqlScalar(0) == true);
 }
 
+test "mulFraction" {
+    const sizeTest4 = try length.mulScalar(4);
+    const sizeTest4MulFrac = try sizeTest4.mulFraction(try Fractioni32.init(1, 4));
+    try testing.expectEqual(length, sizeTest4MulFrac);
+}
+
+test "mulFractionInPlace" {
+    var sizeTest4 = try length.mulScalar(4);
+    try sizeTest4.mulFractionInPlace(try Fractioni32.init(1, 4));
+    try testing.expectEqual(length, sizeTest4);
+}
+
 test "divScalar" {
     const massTestmul2 = try mass.divScalar(2);
     try testing.expectEqual(try Fractioni32.init(1, 2), massTestmul2.m);
@@ -258,6 +302,18 @@ test "divScalarInPlace" {
     try massTest2.divScalarInPlace(-2);
     try testing.expectEqual(try Fractioni32.init(-1, 2), massTest2.m);
     try testing.expect(massTest2.l.eqlScalar(0) == true);
+}
+
+test "divFraction" {
+    const sizeTest4 = try length.divScalar(4);
+    const sizeTest4MulFrac = try sizeTest4.divFraction(try Fractioni32.init(1, 4));
+    try testing.expectEqual(length, sizeTest4MulFrac);
+}
+
+test "divFractionInPlace" {
+    var sizeTest4 = try length.divScalar(4);
+    try sizeTest4.divFractionInPlace(try Fractioni32.init(1, 4));
+    try testing.expectEqual(length, sizeTest4);
 }
 
 test "negInPlace" {
