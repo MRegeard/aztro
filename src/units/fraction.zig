@@ -6,6 +6,7 @@ const debug = std.debug;
 pub const FractionError = error{
     Overflow,
     ZeroDenominator,
+    ImpossibleConversionToInt,
 };
 
 pub fn Fraction(comptime T: type) type {
@@ -235,6 +236,21 @@ pub fn Fraction(comptime T: type) type {
         pub fn absInPlace(self: *Self) void {
             self.num *= math.sign(self.num);
             self.denum *= math.sign(self.denum);
+        }
+
+        pub fn toFloat(self: Self, comptime float_type: type) float_type {
+            const num: float_type = @floatFromInt(self.num);
+            const denum: float_type = @floatFromInt(self.denum);
+            return num / denum;
+        }
+
+        pub fn toInt(self: Self, comptime int_type: type) Error!int_type {
+            if (self.isInt()) {
+                const res: int_type = @intCast(self.reduce().num);
+                return res;
+            } else {
+                return Error.ImpossibleConversionToInt;
+            }
         }
     };
 }
@@ -555,4 +571,25 @@ test "eqlInt" {
     try testing.expect(frac.eqlScalar(2) == true);
     const frac2 = try Fraci32.init(3, 2);
     try testing.expect(frac2.eqlScalar(3) == false);
+}
+
+test "toFloat" {
+    const frac = try Fraci32.init(1, 2);
+    try testing.expect(math.approxEqAbs(f64, frac.toFloat(f64), 0.5, 1e-15));
+    try testing.expect(math.approxEqAbs(f32, frac.toFloat(f32), 0.5, 1e-15));
+
+    const fracOverload = try Fraci32.init(math.maxInt(i32), 1);
+    _ = fracOverload.toFloat(f64);
+}
+
+test "toInt" {
+    const frac = try Fraci32.init(4, 2);
+    try testing.expectEqual(2, try frac.toInt(u32));
+
+    const frac2 = try Fraci32.init(1, 3);
+    try testing.expectError(FractionError.ImpossibleConversionToInt, frac2.toInt(u32));
+
+    // Should crash the test
+    // const fracOverload = try Fraci32.init(math.maxInt(i32), 1);
+    // _ = try fracOverload.toInt(u16);
 }
