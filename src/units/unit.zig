@@ -10,13 +10,6 @@ const fraction = @import("fraction.zig");
 const FractionError = fraction.FractionError;
 const Fraction = fraction.Fraction;
 
-pub fn returnTypeOfUnitOperation(comptime unit_1: Unit, comptime unit_2: Unit, func: fn (Unit, Unit) FractionError!Unit) type {
-    const funcRes = func(unit_1, unit_2) catch |err| {
-        @compileError("Unit operation failed with: " ++ @errorName(err));
-    };
-    return @TypeOf(funcRes);
-}
-
 pub const Unit = struct {
     const Self = @This();
 
@@ -40,7 +33,7 @@ pub const Unit = struct {
             mem.eql(u8, self.symbol, other.symbol);
     }
 
-    pub fn mul(self: Self, other: Self) FractionError!Self {
+    pub fn tryMul(self: Self, other: Self) FractionError!Self {
         if (self.offset != 0.0 or other.offset != 0.0) {
             @compileError("Cannot multiply affine units (non-zero offset).");
         }
@@ -52,7 +45,13 @@ pub const Unit = struct {
         };
     }
 
-    pub fn div(self: Self, other: Self) FractionError!Self {
+    pub fn mul(self: Self, other: Self) Self {
+        return self.tryMul(other) catch |err| {
+            @compileError("Unit multiply failed with: " ++ @errorName(err));
+        };
+    }
+
+    pub fn tryDiv(self: Self, other: Self) FractionError!Self {
         if (self.offset != 0.0 or other.offset != 0.0) {
             @compileError("Cannot divide affine units (non-zero offset).");
         }
@@ -64,7 +63,13 @@ pub const Unit = struct {
         };
     }
 
-    pub fn pow(self: Self, value: i32) FractionError!Self {
+    pub fn div(self: Self, other: Self) Self {
+        return self.tryDiv(other) catch |err| {
+            @compileError("Unit divide failed with: " ++ @errorName(err));
+        };
+    }
+
+    pub fn tryPow(self: Self, value: i32) FractionError!Self {
         if (self.offset != 0.0) {
             @compileError("Cannot power affine units (non-zero offset).");
         }
@@ -76,7 +81,13 @@ pub const Unit = struct {
         };
     }
 
-    pub fn sqrt(self: Self) FractionError!Self {
+    pub fn pow(self: Self, value: i32) Self {
+        return self.tryPow(value) catch |err| {
+            @compileError("Unit power failed with: " ++ @errorName(err));
+        };
+    }
+
+    pub fn trySqrt(self: Self) FractionError!Self {
         if (self.offset != 0.0) {
             @compileError("Cannot square root affine units (non-zero offset).");
         }
@@ -88,7 +99,13 @@ pub const Unit = struct {
         };
     }
 
-    pub fn cbrt(self: Self) FractionError!Self {
+    pub fn sqrt(self: Self) Self {
+        return self.trySqrt() catch |err| {
+            @compileError("Unit square root failed with: " ++ @errorName(err));
+        };
+    }
+
+    pub fn tryCbrt(self: Self) FractionError!Self {
         if (self.offset != 0.0) {
             @compileError("Cannot cube root affine units (non-zero offset).");
         }
@@ -100,7 +117,13 @@ pub const Unit = struct {
         };
     }
 
-    pub fn powByFraction(self: Self, num: i32, denum: i32) FractionError!Self {
+    pub fn cbrt(self: Self) Self {
+        return self.tryCbrt() catch |err| {
+            @compileError("Unit cube root failed with: " ++ @errorName(err));
+        };
+    }
+
+    pub fn tryPowByFraction(self: Self, num: i32, denum: i32) FractionError!Self {
         if (self.offset != 0.0) {
             @compileError("Cannot cube root affine units (non-zero offset).");
         }
@@ -113,7 +136,13 @@ pub const Unit = struct {
         };
     }
 
-    pub fn powByAztroFraction(self: Self, frac: Fraction(i32)) FractionError!Self {
+    pub fn powByFraction(self: Self, num: i32, denum: i32) Self {
+        return self.tryPowByFraction(num, denum) catch |err| {
+            @compileError("Unit power by fraction failed with: " ++ @errorName(err));
+        };
+    }
+
+    pub fn tryPowByAztroFraction(self: Self, frac: Fraction(i32)) FractionError!Self {
         if (self.offset != 0.0) {
             @compileError("Cannot cube root affine units (non-zero offset).");
         }
@@ -122,6 +151,12 @@ pub const Unit = struct {
             .scale = math.pow(f64, self.scale, frac.toFloat(f64)),
             .offset = 0.0,
             .symbol = fmt.comptimePrint("({s}){d}/{d}", .{ self.symbol, frac.num, frac.denum }),
+        };
+    }
+
+    pub fn powByAztroFraction(self: Self, frac: Fraction(i32)) Self {
+        return self.powByAztroFraction(frac) catch |err| {
+            @compileError("Unit power by aztro fraction failed with: " ++ @errorName(err));
         };
     }
 };
@@ -146,7 +181,7 @@ test "test multiply units" {
     comptime {
         const meter1: Unit = .init(dimMod.length, 1, "m");
         const meter2: Unit = .init(dimMod.length, 1, "m");
-        const meterSquare = try meter1.mul(meter2);
+        const meterSquare = try meter1.tryMul(meter2);
         try testing.expectEqual(meterSquare.scale, 1.0);
         try testing.expectEqual(meterSquare.offset, 0.0);
         try testing.expectEqual(meterSquare.symbol, "m m");
@@ -158,7 +193,7 @@ test "test divid units" {
     comptime {
         const meter: Unit = .init(dimMod.length, 1, "m");
         const centimeter: Unit = .init(dimMod.length, 0.01, "cm");
-        const meterCentimeter = try meter.div(centimeter);
+        const meterCentimeter = try meter.tryDiv(centimeter);
         try testing.expectEqual(meterCentimeter.scale, 100);
         try testing.expectEqual(meterCentimeter.offset, 0.0);
         try testing.expectEqual(meterCentimeter.symbol, "m (cm)-1");
@@ -169,7 +204,7 @@ test "test divid units" {
 test "pow" {
     comptime {
         const cm: Unit = .init(dimMod.length, 0.01, "cm");
-        const cmCube = try cm.pow(3);
+        const cmCube = try cm.tryPow(3);
         try testing.expect(math.approxEqAbs(f64, cmCube.scale, 1e-6, 1e-15));
         try testing.expectEqual(0.0, cmCube.offset);
         try testing.expectEqual(try dimMod.length.add(try dimMod.length.add(dimMod.length)), cmCube.dim);
@@ -181,7 +216,7 @@ test "sqrt" {
     comptime {
         const m2: Unit = .init(try dimMod.length.add(dimMod.length), 1, "m2");
         const m: Unit = .init(dimMod.length, 1, "m");
-        const m2sqrt = try m2.sqrt();
+        const m2sqrt = try m2.trySqrt();
         try testing.expect(math.approxEqAbs(f64, m.scale, m2sqrt.scale, 1e-15));
         try testing.expectEqual(0.0, m2sqrt.offset);
         try testing.expectEqual(m.dim, m2sqrt.dim);
@@ -192,7 +227,7 @@ test "cbrt" {
     comptime {
         const m3: Unit = .init(try dimMod.length.mulScalar(3), 1, "m3");
         const m: Unit = .init(dimMod.length, 1, "m");
-        const m3cbrt = try m3.cbrt();
+        const m3cbrt = try m3.tryCbrt();
         try testing.expect(math.approxEqAbs(f64, m.scale, m3cbrt.scale, 1e-15));
         try testing.expectEqual(0.0, m3cbrt.offset);
         try testing.expectEqual(m.dim, m3cbrt.dim);
@@ -203,7 +238,7 @@ test "powByFraction" {
     comptime {
         const m4: Unit = .init(try dimMod.length.mulScalar(4), 1, "m4");
         const m: Unit = .init(dimMod.length, 1, "m");
-        const m4PowByFrac = try m4.powByFraction(1, 4);
+        const m4PowByFrac = try m4.tryPowByFraction(1, 4);
         try testing.expect(math.approxEqAbs(f64, m.scale, m4PowByFrac.scale, 1e-15));
         try testing.expectEqual(0.0, m4PowByFrac.offset);
         try testing.expectEqual(m.dim, m4PowByFrac.dim);
@@ -215,18 +250,10 @@ test "powByAztroFraction" {
         const frac = try Fraction(i32).init(1, 4);
         const m4: Unit = .init(try dimMod.length.mulScalar(4), 1, "m4");
         const m: Unit = .init(dimMod.length, 1, "m");
-        const m4PowByFrac = try m4.powByAztroFraction(frac);
+        const m4PowByFrac = try m4.tryPowByAztroFraction(frac);
         try testing.expect(math.approxEqAbs(f64, m.scale, m4PowByFrac.scale, 1e-15));
         try testing.expectEqual(0.0, m4PowByFrac.offset);
         try testing.expectEqual(m.dim, m4PowByFrac.dim);
-    }
-}
-
-test "returnTypeOfUnitOperation" {
-    comptime {
-        const m: Unit = .init(dimMod.length, 1, "m");
-        const m2: Unit = .init(try dimMod.length.add(dimMod.length), 1, "m2");
-        try testing.expectEqual(@TypeOf(m2), returnTypeOfUnitOperation(m, m, Unit.mul));
     }
 }
 
