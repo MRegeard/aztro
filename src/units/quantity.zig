@@ -48,7 +48,6 @@ pub fn Quantity(comptime T: type, comptime U: Unit) type {
     };
 }
 
-
 test "init" {
     comptime {
         const size = Quantity(f64, si.m).init(3.1415);
@@ -113,7 +112,6 @@ test "div" {
     }
 }
 
-
 // No setup for comptime error at the moment
 //test "Errors" {
 //    comptime {
@@ -123,4 +121,3 @@ test "div" {
 //        _ = size.mul(time);
 //    }
 //}
-
