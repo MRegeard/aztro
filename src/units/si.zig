@@ -65,7 +65,7 @@ pub const yr: Unit = defUnitFromUnit(d, 365.25, "yr");
 // Frequency
 //
 
-const freq_dim: Dim = Dim.initDimensionless().sub(dim.time);
+const freq_dim: Dim = Dim.initDimensionless().sub(dim.time) catch unreachable;
 pub const Hz: Unit = Unit.init(freq_dim, 1.0, "Hz");
 
 // Mass
