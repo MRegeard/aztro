@@ -1,53 +1,39 @@
 const std = @import("std");
 
 pub fn build(b: *std.Build) void {
-    const target = b.standardTargetOptions(.{});
-    const optimize = b.standardOptimizeOption(.{});
+    const targetOption = b.standardTargetOptions(.{});
+    const optimizeOption = b.standardOptimizeOption(.{});
 
-    const mod = b.addModule("aztro", .{
+    const module = b.addModule("aztro", .{
         .root_source_file = b.path("src/aztro.zig"),
-        .target = target,
+        .target = targetOption,
+        .optimize = optimizeOption,
     });
 
-    const exe = b.addExecutable(.{
-        .name = "aztro",
-        .root_module = b.createModule(.{
-            .root_source_file = b.path("src/main.zig"),
-            .target = target,
-            .optimize = optimize,
-            .imports = &.{
-                .{ .name = "aztro", .module = mod },
-            },
-        }),
+    const tests = b.addTest(.{
+        .root_module = module,
     });
 
-    b.installArtifact(exe);
+    const run_tests = b.addRunArtifact(tests);
+    const test_step = b.step("test", "Run library tests");
+    test_step.dependOn(&run_tests.step);
 
-    const run_step = b.step("run", "Run the app");
+    // Docs
+    {
+        const lib = b.addLibrary(.{
+            .linkage = .static,
+            .name = "aztro",
+            .root_module = module,
+        });
+        b.installArtifact(lib);
 
-    const run_cmd = b.addRunArtifact(exe);
-    run_step.dependOn(&run_cmd.step);
+        const install_docs = b.addInstallDirectory(.{
+            .source_dir = lib.getEmittedDocs(),
+            .install_dir = .prefix,
+            .install_subdir = "docs",
+        });
 
-    run_cmd.step.dependOn(b.getInstallStep());
-
-    if (b.args) |args| {
-        run_cmd.addArgs(args);
+        const docs_step = b.step("docs", "Install docs into zig-out/docs");
+        docs_step.dependOn(&install_docs.step);
     }
-
-    const mod_tests = b.addTest(.{
-        .root_module = mod,
-    });
-
-    const run_mod_tests = b.addRunArtifact(mod_tests);
-
-    const exe_tests = b.addTest(.{
-        .root_module = exe.root_module,
-    });
-
-    const run_exe_tests = b.addRunArtifact(exe_tests);
-
-    const test_step = b.step("test", "Run tests");
-    test_step.dependOn(&run_mod_tests.step);
-    test_step.dependOn(&run_exe_tests.step);
-
 }
