@@ -4,6 +4,8 @@ const testing = std.testing;
 const Unit = @import("unit.zig").Unit;
 const si = @import("si.zig");
 
+const QuantityError = error{UnitNotCompatibleError};
+
 pub fn Quantity(comptime T: type, comptime U: Unit) type {
     return struct {
         const Self = @This();
@@ -44,6 +46,16 @@ pub fn Quantity(comptime T: type, comptime U: Unit) type {
                 @compileError("To divide quantity, value type must match.");
             }
             return .init(self.value / other.value);
+        }
+
+        pub fn to(self: Self, unit_type: Unit) QuantityError!Quantity(T, unit_type) {
+            if (!U.dim.eql(unit_type.dim)) {
+                return QuantityError.UnitNotCompatibleError;
+            }
+            const convert_scale = U.scale / unit_type.scale;
+            const convert_offset = U.offset - unit_type.offset;
+
+            return Quantity(T, unit_type).init(self.value * convert_scale + convert_offset);
         }
     };
 }
@@ -109,6 +121,30 @@ test "div" {
         const speed = size.div(time);
         try testing.expectEqual(2.5, speed.value);
         try testing.expectEqual(si.m.div(si.s), @TypeOf(speed).unit);
+    }
+}
+
+test "to" {
+    comptime {
+        const size_m = Quantity(f64, si.m).init(3);
+        const size_cm = try size_m.to(si.cm);
+        try testing.expectEqual(300, size_cm.value);
+        try testing.expectEqual(si.cm, @TypeOf(size_cm).unit);
+
+        const mass_g = Quantity(f64, si.g).init(30);
+        const mass_kg = try mass_g.to(si.kg);
+
+        try testing.expectEqual(0.03, mass_kg.value);
+        try testing.expectEqual(si.kg, @TypeOf(mass_kg).unit);
+
+        const temp_C = Quantity(f64, si.degC).init(0);
+        const temp_K = try temp_C.to(si.K);
+        try testing.expectEqual(273.15, temp_K.value);
+        try testing.expectEqual(si.K, @TypeOf(temp_K).unit);
+
+        const temp_K_2 = Quantity(f64, si.K).init(0);
+        const temp_C_2 = try temp_K_2.to(si.degC);
+        try testing.expectEqual(-273.15, temp_C_2.value);
     }
 }
 
