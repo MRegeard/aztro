@@ -11,6 +11,8 @@ const si = @import("si.zig");
 const FractionError = fraction.FractionError;
 const Fraction = fraction.Fraction;
 
+pub const UNITLESS: Unit = .init(Dim.initDimensionless(), 1.0, "");
+
 pub const Unit = struct {
     const Self = @This();
 
@@ -153,7 +155,7 @@ pub const Unit = struct {
     }
 
     pub fn powByAztroFraction(comptime self: Self, frac: Fraction(i32)) Self {
-        return self.powByAztroFraction(frac) catch {
+        return self.tryPowByAztroFraction(frac) catch {
             @compileError("Unit power failed");
         };
     }
