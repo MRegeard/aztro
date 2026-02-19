@@ -8,7 +8,7 @@ fn defUnitFromUnit(
     conversion_scale: f64,
     symbol: []const u8,
 ) Unit {
-    if (root.offset != 0.0) {
+    if (root.offset != null) {
         @compileError(
             "defUnitFromUnit() cannot be used with affine units (non-zero offset).",
         );
