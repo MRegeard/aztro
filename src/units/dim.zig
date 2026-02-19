@@ -18,34 +18,34 @@ pub const luminousIntensity: Dim = .initUniqueFieldInt("j", 1);
 pub const Dim = struct {
     const Self = @This();
 
-    l: Fraction(i32),
-    m: Fraction(i32),
-    t: Fraction(i32),
-    i: Fraction(i32),
-    th: Fraction(i32),
-    n: Fraction(i32),
-    j: Fraction(i32),
+    l: Fraction(isize),
+    m: Fraction(isize),
+    t: Fraction(isize),
+    i: Fraction(isize),
+    th: Fraction(isize),
+    n: Fraction(isize),
+    j: Fraction(isize),
 
     pub fn initDimensionless() Self {
         return .{
-            .l = Fraction(i32).initInt(0),
-            .m = Fraction(i32).initInt(0),
-            .t = Fraction(i32).initInt(0),
-            .i = Fraction(i32).initInt(0),
-            .th = Fraction(i32).initInt(0),
-            .n = Fraction(i32).initInt(0),
-            .j = Fraction(i32).initInt(0),
+            .l = Fraction(isize).initInt(0),
+            .m = Fraction(isize).initInt(0),
+            .t = Fraction(isize).initInt(0),
+            .i = Fraction(isize).initInt(0),
+            .th = Fraction(isize).initInt(0),
+            .n = Fraction(isize).initInt(0),
+            .j = Fraction(isize).initInt(0),
         };
     }
 
-    pub fn initUniqueField(comptime field_name: []const u8, frac: Fraction(i32)) Self {
+    pub fn initUniqueField(comptime field_name: []const u8, frac: Fraction(isize)) Self {
         var res = Self.initDimensionless();
         @field(res, field_name) = frac;
         return res;
     }
 
-    pub fn initUniqueFieldInt(comptime field_name: []const u8, value: i32) Self {
-        return Self.initUniqueField(field_name, Fraction(i32).initInt(value));
+    pub fn initUniqueFieldInt(comptime field_name: []const u8, value: isize) Self {
+        return Self.initUniqueField(field_name, Fraction(isize).initInt(value));
     }
 
     pub fn eql(self: Self, other: Self) bool {
@@ -106,7 +106,7 @@ pub const Dim = struct {
         }
     }
 
-    pub fn mulScalar(self: Self, value: i32) FractionError!Self {
+    pub fn mulScalar(self: Self, value: isize) FractionError!Self {
         var res = self;
         inline for (@typeInfo(Self).@"struct".fields) |field| {
             const name = field.name;
@@ -115,14 +115,14 @@ pub const Dim = struct {
         return res;
     }
 
-    pub fn mulScalarInPlace(self: *Self, value: i32) FractionError!void {
+    pub fn mulScalarInPlace(self: *Self, value: isize) FractionError!void {
         inline for (@typeInfo(Self).@"struct".fields) |field| {
             const name = field.name;
             try @field(self.*, name).mulScalarInPlace(value);
         }
     }
 
-    pub fn mulFraction(self: Self, frac: Fraction(i32)) FractionError!Self {
+    pub fn mulFraction(self: Self, frac: Fraction(isize)) FractionError!Self {
         var res = self;
         inline for (@typeInfo(Self).@"struct".fields) |field| {
             const name = field.name;
@@ -131,14 +131,14 @@ pub const Dim = struct {
         return res;
     }
 
-    pub fn mulFractionInPlace(self: *Self, frac: Fraction(i32)) FractionError!void {
+    pub fn mulFractionInPlace(self: *Self, frac: Fraction(isize)) FractionError!void {
         inline for (@typeInfo(Self).@"struct".fields) |field| {
             const name = field.name;
             try @field(self.*, name).mulInPlace(frac);
         }
     }
 
-    pub fn divScalar(self: Self, value: i32) FractionError!Self {
+    pub fn divScalar(self: Self, value: isize) FractionError!Self {
         var res = self;
         inline for (@typeInfo(Self).@"struct".fields) |field| {
             const name = field.name;
@@ -147,14 +147,14 @@ pub const Dim = struct {
         return res;
     }
 
-    pub fn divScalarInPlace(self: *Self, value: i32) FractionError!void {
+    pub fn divScalarInPlace(self: *Self, value: isize) FractionError!void {
         inline for (@typeInfo(Self).@"struct".fields) |field| {
             const name = field.name;
             try @field(self.*, name).divScalarInPlace(value);
         }
     }
 
-    pub fn divFraction(self: Self, frac: Fraction(i32)) FractionError!Self {
+    pub fn divFraction(self: Self, frac: Fraction(isize)) FractionError!Self {
         var res = self;
         inline for (@typeInfo(Self).@"struct".fields) |field| {
             const name = field.name;
@@ -163,7 +163,7 @@ pub const Dim = struct {
         return res;
     }
 
-    pub fn divFractionInPlace(self: *Self, frac: Fraction(i32)) FractionError!void {
+    pub fn divFractionInPlace(self: *Self, frac: Fraction(isize)) FractionError!void {
         inline for (@typeInfo(Self).@"struct".fields) |field| {
             const name = field.name;
             try @field(self.*, name).divInPlace(frac);
@@ -175,19 +175,19 @@ test "init dimensionless" {
     const d = Dim.initDimensionless();
     inline for (@typeInfo(Dim).@"struct".fields) |field| {
         const name = field.name;
-        try testing.expectEqual(Fraction(i32).initInt(0), @field(d, name));
+        try testing.expectEqual(Fraction(isize).initInt(0), @field(d, name));
     }
 }
 
 test "initUniqueField" {
-    const fieldValue = try Fraction(i32).init(3, 4);
+    const fieldValue = try Fraction(isize).init(3, 4);
     const d = Dim.initUniqueField("t", fieldValue);
     inline for (@typeInfo(Dim).@"struct".fields) |field| {
         const name = field.name;
         if (mem.eql(u8, name, "t")) {
-            try testing.expectEqual(try Fraction(i32).init(3, 4), @field(d, name));
+            try testing.expectEqual(try Fraction(isize).init(3, 4), @field(d, name));
         } else {
-            try testing.expectEqual(Fraction(i32).initInt(0), @field(d, name));
+            try testing.expectEqual(Fraction(isize).initInt(0), @field(d, name));
         }
     }
 }
@@ -197,9 +197,9 @@ test "initUniqueFieldInt" {
     inline for (@typeInfo(Dim).@"struct".fields) |field| {
         const name = field.name;
         if (mem.eql(u8, name, "l")) {
-            try testing.expectEqual(try Fraction(i32).init(3, 1), @field(d, name));
+            try testing.expectEqual(try Fraction(isize).init(3, 1), @field(d, name));
         } else {
-            try testing.expectEqual(Fraction(i32).initInt(0), @field(d, name));
+            try testing.expectEqual(Fraction(isize).initInt(0), @field(d, name));
         }
     }
 }
@@ -212,16 +212,16 @@ test "eql" {
 
 test "add" {
     var lengthTime: Dim = .initDimensionless();
-    lengthTime.l = Fraction(i32).initInt(1);
-    lengthTime.t = Fraction(i32).initInt(1);
+    lengthTime.l = Fraction(isize).initInt(1);
+    lengthTime.t = Fraction(isize).initInt(1);
     const added = try length.add(time);
     try testing.expectEqual(lengthTime, added);
 }
 
 test "addInPlace" {
     var massElectricCurrent: Dim = .initDimensionless();
-    massElectricCurrent.m = Fraction(i32).initInt(1);
-    massElectricCurrent.i = Fraction(i32).initInt(1);
+    massElectricCurrent.m = Fraction(isize).initInt(1);
+    massElectricCurrent.i = Fraction(isize).initInt(1);
     var massTest: Dim = mass;
     try massTest.addInPlace(electricCurrent);
     try testing.expectEqual(massElectricCurrent, massTest);
@@ -229,16 +229,16 @@ test "addInPlace" {
 
 test "sub" {
     var tempByAmount: Dim = .initDimensionless();
-    tempByAmount.th = Fraction(i32).initInt(1);
-    tempByAmount.n = Fraction(i32).initInt(-1);
+    tempByAmount.th = Fraction(isize).initInt(1);
+    tempByAmount.n = Fraction(isize).initInt(-1);
     const subbed = try temperature.sub(amount);
     try testing.expectEqual(tempByAmount, subbed);
 }
 
 test "subInPlace" {
     var lumBylength: Dim = .initDimensionless();
-    lumBylength.l = Fraction(i32).initInt(-1);
-    lumBylength.j = Fraction(i32).initInt(1);
+    lumBylength.l = Fraction(isize).initInt(-1);
+    lumBylength.j = Fraction(isize).initInt(1);
     var lumTest: Dim = luminousIntensity;
     try lumTest.subInPlace(length);
     try testing.expectEqual(lumBylength, lumTest);
@@ -272,45 +272,45 @@ test "mulScalarInPlace" {
 
 test "mulFraction" {
     const sizeTest4 = try length.mulScalar(4);
-    const sizeTest4MulFrac = try sizeTest4.mulFraction(try Fraction(i32).init(1, 4));
+    const sizeTest4MulFrac = try sizeTest4.mulFraction(try Fraction(isize).init(1, 4));
     try testing.expectEqual(length, sizeTest4MulFrac);
 }
 
 test "mulFractionInPlace" {
     var sizeTest4 = try length.mulScalar(4);
-    try sizeTest4.mulFractionInPlace(try Fraction(i32).init(1, 4));
+    try sizeTest4.mulFractionInPlace(try Fraction(isize).init(1, 4));
     try testing.expectEqual(length, sizeTest4);
 }
 
 test "divScalar" {
     const massTestmul2 = try mass.divScalar(2);
-    try testing.expectEqual(try Fraction(i32).init(1, 2), massTestmul2.m);
+    try testing.expectEqual(try Fraction(isize).init(1, 2), massTestmul2.m);
 
     const massTestmul_2 = try mass.divScalar(-2);
-    try testing.expectEqual(try Fraction(i32).init(-1, 2), massTestmul_2.m);
+    try testing.expectEqual(try Fraction(isize).init(-1, 2), massTestmul_2.m);
     try testing.expect(massTestmul_2.l.eqlScalar(0) == true);
 }
 
 test "divScalarInPlace" {
     var massTest = mass;
     try massTest.divScalarInPlace(2);
-    try testing.expectEqual(try Fraction(i32).init(1, 2), massTest.m);
+    try testing.expectEqual(try Fraction(isize).init(1, 2), massTest.m);
 
     var massTest2 = mass;
     try massTest2.divScalarInPlace(-2);
-    try testing.expectEqual(try Fraction(i32).init(-1, 2), massTest2.m);
+    try testing.expectEqual(try Fraction(isize).init(-1, 2), massTest2.m);
     try testing.expect(massTest2.l.eqlScalar(0) == true);
 }
 
 test "divFraction" {
     const sizeTest4 = try length.divScalar(4);
-    const sizeTest4MulFrac = try sizeTest4.divFraction(try Fraction(i32).init(1, 4));
+    const sizeTest4MulFrac = try sizeTest4.divFraction(try Fraction(isize).init(1, 4));
     try testing.expectEqual(length, sizeTest4MulFrac);
 }
 
 test "divFractionInPlace" {
     var sizeTest4 = try length.divScalar(4);
-    try sizeTest4.divFractionInPlace(try Fraction(i32).init(1, 4));
+    try sizeTest4.divFractionInPlace(try Fraction(isize).init(1, 4));
     try testing.expectEqual(length, sizeTest4);
 }
 
