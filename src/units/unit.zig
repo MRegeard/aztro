@@ -69,22 +69,21 @@ pub const Unit = struct {
         return self.tryDiv(other) catch unreachable;
     }
 
-    pub fn tryPow(comptime self: Self, value: i32) FractionError!Self {
+    pub fn tryPow(comptime self: Self, comptime value: isize) FractionError!Self {
         if (self.offset != null) {
             @compileError("Cannot power affine units (non-zero offset).");
         }
+        const value_f: f64 = @floatFromInt(value);
         return .{
             .dim = try self.dim.mulScalar(value),
-            .scale = math.pow(f64, self.scale, value),
+            .scale = math.pow(f64, self.scale, value_f),
             .offset = null,
             .symbol = fmt.comptimePrint("({s}){d}", .{ self.symbol, value }),
         };
     }
 
-    pub fn pow(comptime self: Self, value: i32) Self {
-        return self.tryPow(value) catch {
-            @compileError("Unit power failed");
-        };
+    pub fn pow(comptime self: Self, comptime value: isize) Self {
+        return self.tryPow(value) catch unreachable;
     }
 
     pub fn trySqrt(comptime self: Self) FractionError!Self {
@@ -100,9 +99,7 @@ pub const Unit = struct {
     }
 
     pub fn sqrt(comptime self: Self) Self {
-        return self.trySqrt() catch {
-            @compileError("Unit sqrt failed");
-        };
+        return self.trySqrt() catch unreachable;
     }
 
     pub fn tryCbrt(comptime self: Self) FractionError!Self {
@@ -118,16 +115,14 @@ pub const Unit = struct {
     }
 
     pub fn cbrt(comptime self: Self) Self {
-        return self.tryCbrt() catch {
-            @compileError("Unit cbrt failed");
-        };
+        return self.tryCbrt() catch unreachable;
     }
 
-    pub fn tryPowByFraction(comptime self: Self, num: i32, denum: i32) FractionError!Self {
+    pub fn tryPowByFraction(comptime self: Self, num: isize, denum: isize) FractionError!Self {
         if (self.offset != null) {
             @compileError("Cannot cube root affine units (non-zero offset).");
         }
-        const frac = try Fraction(i32).init(num, denum);
+        const frac = try Fraction(isize).init(num, denum);
         return .{
             .dim = try self.dim.mulFraction(frac),
             .scale = math.pow(f64, self.scale, frac.toFloat(f64)),
@@ -136,13 +131,13 @@ pub const Unit = struct {
         };
     }
 
-    pub fn powByFraction(comptime self: Self, num: i32, denum: i32) Self {
+    pub fn powByFraction(comptime self: Self, num: isize, denum: isize) Self {
         return self.tryPowByFraction(num, denum) catch {
             @compileError("Unit power failed");
         };
     }
 
-    pub fn tryPowByAztroFraction(comptime self: Self, frac: Fraction(i32)) FractionError!Self {
+    pub fn tryPowByAztroFraction(comptime self: Self, frac: Fraction(isize)) FractionError!Self {
         if (self.offset != null) {
             @compileError("Cannot cube root affine units (non-zero offset).");
         }
@@ -154,7 +149,7 @@ pub const Unit = struct {
         };
     }
 
-    pub fn powByAztroFraction(comptime self: Self, frac: Fraction(i32)) Self {
+    pub fn powByAztroFraction(comptime self: Self, frac: Fraction(isize)) Self {
         return self.tryPowByAztroFraction(frac) catch {
             @compileError("Unit power failed");
         };
@@ -247,7 +242,7 @@ test "powByFraction" {
 
 test "powByAztroFraction" {
     comptime {
-        const frac = try Fraction(i32).init(1, 4);
+        const frac = try Fraction(isize).init(1, 4);
         const m4: Unit = .init(try dimMod.length.mulScalar(4), 1, "m4");
         const m: Unit = .init(dimMod.length, 1, "m");
         const m4PowByFrac = try m4.tryPowByAztroFraction(frac);
