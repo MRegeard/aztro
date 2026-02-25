@@ -10,6 +10,8 @@ pub const quantity = @import("units/quantity.zig");
 pub const Quantity = quantity.Quantity;
 pub const fraction = @import("units/fraction.zig");
 pub const Fraction = fraction.Fraction;
+pub const system = @import("units/system.zig");
+pub const System = system.System;
 
 test {
     testing.refAllDecls(@This());
