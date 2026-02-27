@@ -169,6 +169,18 @@ pub const Dim = struct {
             try @field(self.*, name).divInPlace(frac);
         }
     }
+
+    pub fn format(self: *const Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
+        try writer.writeAll("Dim: {");
+        inline for (@typeInfo(Self).@"struct".fields, 0..7) |field, i| {
+            const name = field.name;
+            try writer.print("{s} = {f}", .{ name, @field(self.*, name) });
+            if (i < 6) {
+                try writer.writeAll(", ");
+            }
+        }
+        try writer.writeByte('}');
+    }
 };
 
 test "init dimensionless" {
@@ -319,4 +331,15 @@ test "negInPlace" {
     try amountTest.negInPlace();
     const invAmountRes: Dim = .initUniqueFieldInt("n", -1);
     try testing.expectEqual(invAmountRes, amountTest);
+}
+
+test "format" {
+    var lengthTime: Dim = .initDimensionless();
+    lengthTime.l = Fraction(isize).initInt(1);
+    lengthTime.t = Fraction(isize).initInt(1);
+
+    var buf: [64]u8 = undefined;
+    const print_res = try std.fmt.bufPrint(&buf, "{f}", .{lengthTime});
+    const expected: []const u8 = "Dim: {l = 1, m = 0, t = 1, i = 0, th = 0, n = 0, j = 0}";
+    try testing.expectEqualSlices(u8, expected, print_res);
 }
