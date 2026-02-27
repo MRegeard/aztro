@@ -392,18 +392,76 @@ pub fn Quantity(comptime T: type, comptime U: Unit) type {
             const unit_offset: f64 = unit_type.offset orelse 0;
             const convert_offset = self_offset - unit_offset;
             switch (child_type) {
-                .int,
-                .float,
-                => return .init(self.value * convert_scale + convert_offset),
-                .vector_int, .vector_float => {
-                    const convert_scale_vec: T = @splat(convert_scale);
-                    const convert_offset_vec: T = @splat(convert_offset);
-                    return .init(self.value * convert_scale_vec + convert_offset_vec);
+                .int => {
+                    const convert_scale_int: T = @intFromFloat(convert_scale);
+                    const convert_offset_int: T = @intFromFloat(convert_offset);
+                    const multiply = @mulWithOverflow(self.value, convert_scale_int);
+                    if (multiply[1] != 0) @panic("Overflow encounter");
+                    const result = @addWithOverflow(multiply[0], convert_offset_int);
+                    if (result[1] != 0) @panic("Overflow encounter");
+                    return .init(result[0]);
                 },
-                .array_int, .array_float => {
+                .float => {
+                    if (T != f64) {
+                        const convert_scale_float: T = @floatCast(convert_scale);
+                        const convert_offset_float: T = @floatCast(convert_offset);
+                        return .init(@mulAdd(T, self.value, convert_scale_float, convert_offset_float));
+                    }
+                    return .init(@mulAdd(T, self.value, convert_scale, convert_offset));
+                },
+                .vector_int => {
+                    const inner_type: type = @typeInfo(T).vector.child;
+                    const convert_scale_int: inner_type = @intFromFloat(convert_scale);
+                    const convert_offset_int: inner_type = @intFromFloat(convert_offset);
+                    const convert_scale_vec: T = @splat(convert_scale_int);
+                    const convert_offset_vec: T = @splat(convert_offset_int);
+                    const multiply = @mulWithOverflow(self.value, convert_scale_vec);
+                    if (multiply[1] != 0) @panic("Overflow encounter");
+                    const result = @addWithOverflow(multiply[0], convert_offset_vec);
+                    if (result[1] != 0) @panic("Overflow encounter");
+                    return .init(result[0]);
+                },
+                .vector_float => {
+                    const inner_type: type = @typeInfo(T).vector.child;
+                    if (inner_type != f64) {
+                        const convert_scale_float: inner_type = @floatCast(convert_scale);
+                        const convert_offset_float: inner_type = @floatCast(convert_offset);
+                        const convert_scale_vec: T = @splat(convert_scale_float);
+                        const convert_offset_vec: T = @splat(convert_offset_float);
+                        return .init(@mulAdd(T, self.value, convert_scale_vec, convert_offset_vec));
+                    } else {
+                        const convert_scale_vec: T = @splat(convert_scale);
+                        const convert_offset_vec: T = @splat(convert_offset);
+                        return .init(@mulAdd(T, self.value, convert_scale_vec, convert_offset_vec));
+                    }
+                },
+                .array_int => {
+                    const inner_type: type = @typeInfo(T).array.child;
+                    const convert_scale_int: inner_type = @intFromFloat(convert_scale);
+                    const convert_offset_int: inner_type = @intFromFloat(convert_offset);
                     var new_array: T = undefined;
-                    for (0..child_type.value.len) |i| {
-                        new_array[i] = self.value[i] * convert_scale + convert_offset;
+                    for (0..self.value.len) |i| {
+                        const multiply = @mulWithOverflow(self.value[i], convert_scale_int);
+                        if (multiply[1] != 0) @panic("Overflow encounter");
+                        const result = @addWithOverflow(multiply[0], convert_offset_int);
+                        if (result[1] != 0) @panic("Overflow encounter");
+                        new_array[i] = result[0];
+                    }
+                    return .init(new_array);
+                },
+                .array_float => {
+                    const inner_type: type = @typeInfo(T).array.child;
+                    var new_array: T = undefined;
+                    if (inner_type != f64) {
+                        const convert_scale_float: inner_type = @floatCast(convert_scale);
+                        const convert_offset_float: inner_type = @floatCast(convert_offset);
+                        for (0..self.value.len) |i| {
+                            new_array[i] = @mulAdd(inner_type, self.value[i], convert_scale_float, convert_offset_float);
+                        }
+                        return .init(new_array);
+                    }
+                    for (0..self.value.len) |i| {
+                        new_array[i] = @mulAdd(inner_type, self.value[i], convert_scale, convert_offset);
                     }
                     return .init(new_array);
                 },
@@ -420,10 +478,32 @@ pub fn Quantity(comptime T: type, comptime U: Unit) type {
             const unit_offset: f64 = unit_type.offset orelse 0;
             const convert_offset = self_offset - unit_offset;
             switch (child_type) {
-                .slice_int, .slice_float => {
+                .slice_int => {
                     std.debug.assert(self.value.len == out.value.len);
+                    const inner_type = @typeInfo(T).pointer.child;
+                    const convert_scale_int: inner_type = @intFromFloat(convert_scale);
+                    const convert_offset_int: inner_type = @intFromFloat(convert_offset);
                     for (0..self.value.len) |i| {
-                        out.value[i] = self.value[i] * convert_scale + convert_offset;
+                        const multiply = @mulWithOverflow(self.value[i], convert_scale_int);
+                        if (multiply[1] != 0) @panic("Overflow encounter");
+                        const result = @addWithOverflow(multiply[0], convert_offset_int);
+                        if (result[1] != 0) @panic("Overflow encounter");
+                        out.value[i] = result[0];
+                    }
+                },
+                .slice_float => {
+                    std.debug.assert(self.value.len == out.value.len);
+                    const inner_type: type = @typeInfo(T).pointer.child;
+                    if (inner_type != f64) {
+                        const convert_scale_float: inner_type = @floatCast(convert_scale);
+                        const convert_offset_float: inner_type = @floatCast(convert_offset);
+                        for (0..self.value.len) |i| {
+                            out.value[i] = @mulAdd(inner_type, self.value[i], convert_scale_float, convert_offset_float);
+                        }
+                    } else {
+                        for (0..self.value.len) |i| {
+                            out.value[i] = @mulAdd(inner_type, self.value[i], convert_scale, convert_offset);
+                        }
                     }
                 },
                 else => out.value = self.to(unit_type).value,
