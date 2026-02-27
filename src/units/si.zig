@@ -17,16 +17,14 @@ pub const AA: Unit = defUnitFromUnit(nm, 0.1, "AA");
 // Area
 //
 
-pub const ha: Unit = Unit.init(dim.length.add(dim.length), 10_000.0, "ha");
+const dim_ha = dim.length.add(dim.length) catch unreachable;
+pub const ha: Unit = Unit.init(dim_ha, 10_000.0, "ha");
 
 // Volume
 //
 
-pub const l: Unit = Unit.init(
-    dim.length.add(dim.length).add(dim.length),
-    0.001,
-    "l",
-);
+const dim_l = dim_ha.add(dim.length) catch unreachable;
+pub const l: Unit = Unit.init(dim_l, 0.001, "l");
 
 // Angular
 //
@@ -67,7 +65,8 @@ pub const t: Unit = defUnitFromUnit(kg, 1000.0, "t");
 //
 
 pub const mol: Unit = Unit.init(dim.amount, 1.0, "mol");
-pub const kat: Unit = .init(dim.amount.sub(dim.time), 1, "kat");
+const dim_kat = dim.amount.sub(dim.time) catch unreachable;
+pub const kat: Unit = .init(dim_kat, 1, "kat");
 
 // Temperature
 //
@@ -78,7 +77,7 @@ pub const degC: Unit = Unit.initAffine(dim.temperature, 1.0, 273.15, "degC");
 // Force
 //
 
-pub const N: Unit = .init(dim.mass.add(dim.length.sub(dim.time.mulScalar(2))), 1, "N");
+pub const N: Unit = defUnitFromUnit(kg.mul(m.div(s.pow(2))), 1, "N");
 
 // Energy
 //
@@ -99,7 +98,7 @@ pub const W: Unit = defUnitFromUnit(J.div(s), 1, "W");
 //
 
 pub const A: Unit = .init(dim.electricCurrent, 1, "A");
-pub const C: Unit = defUnitFromUnit(C.mul(s), 1, "C");
+pub const C: Unit = defUnitFromUnit(A.mul(s), 1, "C");
 pub const V: Unit = defUnitFromUnit(J.div(C), 1, "V");
 pub const Ohm: Unit = defUnitFromUnit(V.div(A), 1, "Ohm");
 pub const S: Unit = defUnitFromUnit(A.div(V), 1, "S");
