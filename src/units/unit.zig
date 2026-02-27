@@ -6,7 +6,6 @@ const testing = std.testing;
 const dimMod = @import("dim.zig");
 const Dim = dimMod.Dim;
 const fraction = @import("fraction.zig");
-const si = @import("si.zig");
 
 const FractionError = fraction.FractionError;
 const Fraction = fraction.Fraction;
