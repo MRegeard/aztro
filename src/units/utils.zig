@@ -1,10 +1,11 @@
 const std = @import("std");
 const Unit = @import("unit.zig").Unit;
+const SymbolExpression = @import("symbol.zig").SymbolExpression;
 
 pub fn defUnitFromUnit(
     comptime root: Unit,
     conversion_scale: f64,
-    symbol: []const u8,
+    symbol: SymbolExpression,
 ) Unit {
     if (root.offset != null) {
         @compileError(

@@ -17,4 +17,4 @@ const mol = si.mol;
 // Acceleration
 //
 
-pub const Gal: Unit = defUnitFromUnit(cm.div(s.div(s)), 1, "Gal");
+pub const Gal: Unit = defUnitFromUnit(cm.div(s.div(s)), 1, .initUniqueSymbol("Gal"));
