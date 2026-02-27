@@ -12,10 +12,6 @@ pub const SymbolTerm = struct {
         return .{ .symbol = symbol, .exponent = exponent };
     }
 
-    pub fn initSymbolLess() Self {
-        return .{ .symbol = "", .exponent = Fraction(isize).initInt(1) };
-    }
-
     pub fn initSymbol(symbol: []const u8) Self {
         return .init(symbol, Fraction(isize).initInt(1));
     }
@@ -116,18 +112,24 @@ pub const SymbolExpression = struct {
             term_counter += 1;
         }
         var result: SymbolExpression = .{ .len = term_counter, .terms = terms };
-        result.checkDuplicates();
+        result.checkDuplicatesInPlace();
         return result;
     }
 
-    pub fn checkDuplicates(self: *Self) void {
+    pub fn checkDuplicates(self: Self) Self {
+        var result = self;
+        result.checkDuplicatesInPlace();
+        return result;
+    }
+
+    pub fn checkDuplicatesInPlace(self: *Self) void {
         var i: usize = 0;
         while (i < self.len) {
             var j: usize = i + 1;
             while (j < self.len) {
                 if (std.mem.eql(u8, self.terms[i].symbol, self.terms[j].symbol)) {
                     self.terms[i].exponent.addInPlace(self.terms[j].exponent) catch unreachable;
-                    self.removePos(j);
+                    self.removePosInPlace(j);
                 }
                 j += 1;
             }
@@ -135,10 +137,16 @@ pub const SymbolExpression = struct {
         }
     }
 
-    pub fn append(self: *Self, symbol_term: SymbolTerm) void {
+    pub fn append(self: Self, symbol_term: SymbolTerm) Self {
+        var result = self;
+        result.appendInPlace(symbol_term);
+        return result;
+    }
+
+    pub fn appendInPlace(self: *Self, symbol_term: SymbolTerm) void {
         if (self.indexOfSymbol(symbol_term)) |idx| {
             self.terms[idx].exponent.addInPlace(symbol_term.exponent) catch unreachable;
-            self.checkRemove();
+            self.checkRemoveInPlace();
         } else {
             if (self.len == 8) {
                 @panic("Reach maximum len for SymbolExpression");
@@ -149,17 +157,29 @@ pub const SymbolExpression = struct {
         }
     }
 
-    pub fn checkRemove(self: *Self) void {
+    pub fn checkRemove(self: Self) Self {
+        var result = self;
+        result.checkRemoveInPlace();
+        return result;
+    }
+
+    pub fn checkRemoveInPlace(self: *Self) void {
         var idx: usize = 0;
         while (idx < self.len) {
             if (self.terms[idx].exponent.eqlScalar(0)) {
-                self.removePos(idx);
+                self.removePosInPlace(idx);
             }
             idx += 1;
         }
     }
 
-    pub fn removePos(self: *Self, pos: usize) void {
+    pub fn removePos(self: Self, pos: usize) Self {
+        var result = self;
+        result.removePosInPlace(pos);
+        return result;
+    }
+
+    pub fn removePosInPlace(self: *Self, pos: usize) void {
         if (self.len == 0) @panic("Trying to remove from uninitialize memory cause panic!");
         if (pos >= self.len) @panic("Accessing undefined memory cause panic!");
         self.terms[pos] = self.terms[self.len - 1];
@@ -184,6 +204,39 @@ pub const SymbolExpression = struct {
             try writer.print("{f} ", .{self.terms[i]});
         }
         try writer.print("{f}", .{self.terms[self.len - 1]});
+    }
+
+    pub fn eql(self: Self, other: Self) bool {
+        if (self.len == 0 and other.len == 0) return true;
+        if (self.len != other.len) return false;
+        const other_inv = other.inv();
+        const result = self.concatenate(other_inv);
+        if (result.len == 0) return true;
+        return false;
+    }
+
+    pub fn concatenate(self: Self, other: Self) Self {
+        var result = self;
+        result.concatenateInPlace(other);
+        return result;
+    }
+
+    pub fn concatenateInPlace(self: *Self, other: Self) void {
+        for (0..other.len) |i| {
+            self.appendInPlace(other.terms[i]);
+        }
+    }
+
+    pub fn inv(self: Self) Self {
+        var result = self;
+        result.invInPlace();
+        return result;
+    }
+
+    pub fn invInPlace(self: *Self) void {
+        for (0..self.len) |i| {
+            self.terms[i].exponent.negInPlace() catch unreachable;
+        }
     }
 };
 
@@ -281,35 +334,35 @@ test "SymbolExpression indexOfSymbol" {
     try testing.expectEqual(null, symb_expr.indexOfSymbol(symb_Hz));
 }
 
-test "SymbolExpression remove" {
+test "SymbolExpression removeInPlace" {
     var symb_expr: SymbolExpression = try .initFromString("m s-1");
-    symb_expr.removePos(1);
+    symb_expr.removePosInPlace(1);
     try testing.expectEqual(1, symb_expr.len);
     try testing.expectEqualSlices(u8, "m", symb_expr.terms[0].symbol);
     try testing.expect(symb_expr.terms[0].exponent.eqlScalar(1));
 
-    symb_expr.removePos(0);
+    symb_expr.removePosInPlace(0);
     try testing.expectEqual(0, symb_expr.len);
 }
 
-test "SymbolExpression checkRemove" {
+test "SymbolExpression checkRemoveInPlace" {
     var symb_expr: SymbolExpression = try .initFromString("m s0");
     try testing.expectEqual(2, symb_expr.len);
-    symb_expr.checkRemove();
+    symb_expr.checkRemoveInPlace();
     try testing.expectEqual(1, symb_expr.len);
     try testing.expectEqualSlices(u8, "m", symb_expr.terms[0].symbol);
 }
 
-test "SymbolExpression append" {
+test "SymbolExpression appendInPlace" {
     var symb_expr: SymbolExpression = try .initFromString("m s-1");
-    symb_expr.append(SymbolTerm.initSymbol("s"));
+    symb_expr.appendInPlace(SymbolTerm.initSymbol("s"));
     try testing.expectEqual(1, symb_expr.len);
-    symb_expr.append(SymbolTerm.initSymbol("s"));
+    symb_expr.appendInPlace(SymbolTerm.initSymbol("s"));
     try testing.expectEqual(2, symb_expr.len);
     try testing.expectEqualSlices(u8, "s", symb_expr.terms[1].symbol);
 }
 
-test "SymbolExpression checkDuplicates" {
+test "SymbolExpression checkDuplicatesInPlace" {
     var arr: [3]SymbolTerm = .{
         SymbolTerm.initSymbol("m"),
         SymbolTerm.initSymbolInt("s", -1),
@@ -317,9 +370,35 @@ test "SymbolExpression checkDuplicates" {
     };
     var symb_expr: SymbolExpression = .init(&arr);
     try testing.expectEqual(3, symb_expr.len);
-    symb_expr.checkDuplicates();
+    symb_expr.checkDuplicatesInPlace();
     try testing.expectEqual(2, symb_expr.len);
     try testing.expect(symb_expr.terms[0].exponent.eqlScalar(2));
+}
+
+test "SymbolExpression invInPlace" {
+    var symb_expr: SymbolExpression = try .initFromString("m2 s-3");
+    symb_expr.invInPlace();
+    try testing.expectEqual(2, symb_expr.len);
+    try testing.expect(symb_expr.terms[0].exponent.eqlScalar(-2));
+    try testing.expect(symb_expr.terms[1].exponent.eqlScalar(3));
+}
+
+test "SymbolExpression concatenateInPlace" {
+    var symb_expr_1: SymbolExpression = try .initFromString("m s-1");
+    const symb_expr_2: SymbolExpression = try .initFromString("s m");
+
+    symb_expr_1.concatenateInPlace(symb_expr_2);
+    try testing.expectEqual(1, symb_expr_1.len);
+    try testing.expectEqualSlices(u8, "m", symb_expr_1.terms[0].symbol);
+    try testing.expect(symb_expr_1.terms[0].exponent.eqlScalar(2));
+}
+
+test "SymbolExpression eql" {
+    const symb_expr_1: SymbolExpression = try .initFromString("m s-1 erg2 G");
+    const symb_expr_2: SymbolExpression = try .initFromString("s-1 erg2 m G");
+    try testing.expect(symb_expr_1.eql(symb_expr_2));
+    const symb_expr_3: SymbolExpression = try .initFromString("cm s-1 erg");
+    try testing.expect(!symb_expr_1.eql(symb_expr_3));
 }
 
 test "SymbolExpression format" {
