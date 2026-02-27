@@ -87,6 +87,13 @@ pub const SymbolExpression = struct {
         return result;
     }
 
+    pub fn initUniqueSymbol(comptime symbol: []const u8) Self {
+        var result = Self{};
+        result.len = 1;
+        result.terms[0] = SymbolTerm.initSymbol(symbol);
+        return result;
+    }
+
     pub fn initFromString(comptime string: []const u8) !Self {
         if (string.len == 0) @panic("Implement/check Unitless edge case");
         var terms: [8]SymbolTerm = undefined;
@@ -237,6 +244,30 @@ pub const SymbolExpression = struct {
         for (0..self.len) |i| {
             self.terms[i].exponent.negInPlace() catch unreachable;
         }
+    }
+
+    pub fn mulFracInPlace(self: *Self, frac: Fraction(isize)) void {
+        for (0..self.len) |i| {
+            self.terms[i].exponent.mulInPlace(frac) catch unreachable;
+        }
+    }
+
+    pub fn mulFrac(self: Self, frac: Fraction(isize)) Self {
+        var result = self;
+        result.mulFracInPlace(frac);
+        return result;
+    }
+
+    pub fn divFracInPlace(self: *Self, frac: Fraction(isize)) void {
+        for (0..self.len) |i| {
+            self.terms[i].exponent.divInPlace(frac) catch unreachable;
+        }
+    }
+
+    pub fn divFrac(self: Self, frac: Fraction(isize)) Self {
+        var result = self;
+        result.divFracInPlace(frac);
+        return result;
     }
 };
 
