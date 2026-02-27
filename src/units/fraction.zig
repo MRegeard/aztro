@@ -252,6 +252,15 @@ pub fn Fraction(comptime T: type) type {
                 return Error.ImpossibleConversionToInt;
             }
         }
+
+        pub fn format(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
+            const frac = self.reduce();
+            if (self.isInt()) {
+                try writer.print("{d}", .{frac.num});
+            } else {
+                try writer.print("{d}/{d}", .{ frac.num, frac.denum });
+            }
+        }
     };
 }
 
@@ -592,4 +601,15 @@ test "toInt" {
     // Should crash the test
     // const fracOverload = try Fraci32.init(math.maxInt(i32), 1);
     // _ = try fracOverload.toInt(u16);
+}
+
+test "fromat" {
+    var buf: [8]u8 = undefined;
+    const frac = try Fraci32.init(4, 2);
+    const print_res = try std.fmt.bufPrint(&buf, "{f}", .{frac});
+    try testing.expectEqualSlices(u8, "2", print_res);
+
+    const frac2 = try Fraci32.init(3, 2);
+    const print_res2 = try std.fmt.bufPrint(&buf, "{f}", .{frac2});
+    try testing.expectEqualSlices(u8, "3/2", print_res2);
 }
