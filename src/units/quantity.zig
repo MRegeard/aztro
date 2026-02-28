@@ -509,6 +509,187 @@ pub fn Quantity(comptime T: type, comptime U: Unit) type {
                 else => out.value = self.to(unit_type).value,
             }
         }
+
+        fn printQuantityInt(writer: *std.Io.Writer, comptime Ty: type, value: Ty) std.Io.Writer.Error!void {
+            if (@abs(value) > 1000000) {
+                const f: f64 = @floatFromInt(value);
+                try writer.print("{e}", .{f});
+            } else {
+                try writer.print("{d}", .{value});
+            }
+        }
+
+        fn printQuantityFloat(writer: *std.Io.Writer, comptime Ty: type, value: Ty) std.Io.Writer.Error!void {
+            if (@abs(value) > 100000 or @abs(value) < 1e-3) {
+                try writer.print("{e}", .{value});
+            } else {
+                try writer.print("{d}", .{value});
+            }
+        }
+        pub fn format(self: *const Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
+            switch (child_type) {
+                .int => {
+                    try printQuantityInt(writer, T, self.value);
+                    try writer.print(" {f}", .{U.symbol});
+                },
+                .float => {
+                    try printQuantityFloat(writer, T, self.value);
+                    try writer.print(" {f}", .{U.symbol});
+                },
+                .vector_int => {
+                    const inner_type: type = @typeInfo(T).vector.child;
+                    const len = @typeInfo(T).vector.len;
+                    if (len <= 3) {
+                        try writer.writeAll("@Vector { ");
+                        for (0..len) |i| {
+                            try printQuantityInt(writer, inner_type, self.value[i]);
+                            if (i != len - 1) try writer.writeByte(',');
+                            try writer.writeByte(' ');
+                        }
+                        try writer.print("}} {f}", .{U.symbol});
+                    } else {
+                        try writer.writeAll("@Vector { ");
+                        for (0..2) |i| {
+                            try printQuantityInt(writer, inner_type, self.value[i]);
+                            try writer.writeAll(", ");
+                        }
+                        try writer.writeAll("... ");
+                        for (len - 2..len) |i| {
+                            try printQuantityInt(writer, inner_type, self.value[i]);
+                            if (i != len - 1) try writer.writeByte(',');
+                            try writer.writeByte(' ');
+                        }
+                        try writer.print("}} {f}", .{U.symbol});
+                    }
+                },
+                .vector_float => {
+                    const inner_type: type = @typeInfo(T).vector.child;
+                    const len = @typeInfo(T).vector.len;
+                    if (self.value.len <= 3) {
+                        try writer.writeAll("@Vector { ");
+                        for (0..len) |i| {
+                            try printQuantityFloat(writer, inner_type, self.value[i]);
+                            if (i != len - 1) try writer.writeByte(',');
+                            try writer.writeByte(' ');
+                        }
+                        try writer.print("}} {f}", .{U.symbol});
+                    } else {
+                        try writer.writeAll("@Vector { ");
+                        for (0..2) |i| {
+                            try printQuantityFloat(writer, inner_type, self.value[i]);
+                            try writer.writeAll(", ");
+                        }
+                        try writer.writeAll("... ");
+                        for (len - 2..len) |i| {
+                            try printQuantityFloat(writer, inner_type, self.value[i]);
+                            if (i != len - 1) try writer.writeByte(',');
+                            try writer.writeByte(' ');
+                        }
+                        try writer.print("}} {f}", .{U.symbol});
+                    }
+                },
+                .array_int => {
+                    const inner_type: type = @typeInfo(T).array.child;
+                    if (self.value.len <= 3) {
+                        try writer.writeAll("@Array { ");
+                        for (0..self.value.len) |i| {
+                            try printQuantityInt(writer, inner_type, self.value[i]);
+                            if (i != self.value.len - 1) try writer.writeByte(',');
+                            try writer.writeByte(' ');
+                        }
+                        try writer.print("}} {f}", .{U.symbol});
+                    } else {
+                        try writer.writeAll("@Array { ");
+                        for (0..2) |i| {
+                            try printQuantityInt(writer, inner_type, self.value[i]);
+                            try writer.writeAll(", ");
+                        }
+                        try writer.writeAll("... ");
+                        for (self.value.len - 2..self.value.len) |i| {
+                            try printQuantityInt(writer, inner_type, self.value[i]);
+                            if (i != self.value.len - 1) try writer.writeByte(',');
+                            try writer.writeByte(' ');
+                        }
+                        try writer.print("}} {f}", .{U.symbol});
+                    }
+                },
+                .array_float => {
+                    const inner_type: type = @typeInfo(T).array.child;
+                    if (self.value.len <= 3) {
+                        try writer.writeAll("@Array { ");
+                        for (0..self.value.len) |i| {
+                            try printQuantityFloat(writer, inner_type, self.value[i]);
+                            if (i != self.value.len - 1) try writer.writeByte(',');
+                            try writer.writeByte(' ');
+                        }
+                        try writer.print("}} {f}", .{U.symbol});
+                    } else {
+                        try writer.writeAll("@Array { ");
+                        for (0..2) |i| {
+                            try printQuantityFloat(writer, inner_type, self.value[i]);
+                            try writer.writeAll(", ");
+                        }
+                        try writer.writeAll("... ");
+                        for (self.value.len - 2..self.value.len) |i| {
+                            try printQuantityFloat(writer, inner_type, self.value[i]);
+                            if (i != self.value.len - 1) try writer.writeByte(',');
+                            try writer.writeByte(' ');
+                        }
+                        try writer.print("}} {f}", .{U.symbol});
+                    }
+                },
+                .slice_int => {
+                    const inner_type: type = @typeInfo(T).pointer.child;
+                    if (self.value.len <= 3) {
+                        try writer.writeAll("@Slice { ");
+                        for (0..self.value.len) |i| {
+                            try printQuantityInt(writer, inner_type, self.value[i]);
+                            if (i != self.value.len - 1) try writer.writeByte(',');
+                            try writer.writeByte(' ');
+                        }
+                        try writer.print("}} {f}", .{U.symbol});
+                    } else {
+                        try writer.writeAll("@Slice { ");
+                        for (0..2) |i| {
+                            try printQuantityInt(writer, inner_type, self.value[i]);
+                            try writer.writeAll(", ");
+                        }
+                        try writer.writeAll("... ");
+                        for (self.value.len - 2..self.value.len) |i| {
+                            try printQuantityInt(writer, inner_type, self.value[i]);
+                            if (i != self.value.len - 1) try writer.writeByte(',');
+                            try writer.writeByte(' ');
+                        }
+                        try writer.print("}} {f}", .{U.symbol});
+                    }
+                },
+                .slice_float => {
+                    const inner_type: type = @typeInfo(T).pointer.child;
+                    if (self.value.len <= 3) {
+                        try writer.writeAll("@Slice { ");
+                        for (0..self.value.len) |i| {
+                            try printQuantityFloat(writer, inner_type, self.value[i]);
+                            if (i != self.value.len - 1) try writer.writeByte(',');
+                            try writer.writeByte(' ');
+                        }
+                        try writer.print("}} {f}", .{U.symbol});
+                    } else {
+                        try writer.writeAll("@Slice { ");
+                        for (0..2) |i| {
+                            try printQuantityFloat(writer, inner_type, self.value[i]);
+                            try writer.writeAll(", ");
+                        }
+                        try writer.writeAll("... ");
+                        for (self.value.len - 2..self.value.len) |i| {
+                            try printQuantityFloat(writer, inner_type, self.value[i]);
+                            if (i != self.value.len - 1) try writer.writeByte(',');
+                            try writer.writeByte(' ');
+                        }
+                        try writer.print("}} {f}", .{U.symbol});
+                    }
+                },
+            }
+        }
     };
 }
 
@@ -862,4 +1043,33 @@ test "toInto" {
     var q2: Quantity([]f64, si.cm) = .init(&arr);
     try q1.toInto(si.cm, &q2);
     try testing.expectEqualSlices(f64, &[2]f64{ 100, 200 }, q2.value);
+}
+
+test "format" {
+    const allocator = std.testing.allocator;
+
+    const q1: Quantity(u64, si.s) = .init(2000000);
+    const print1 = try std.fmt.allocPrint(allocator, "{f}", .{q1});
+    try testing.expectEqualSlices(u8, "2e6 s", print1);
+    allocator.free(print1);
+
+    const q2: Quantity(f64, si.kg) = .init(1.2094484932943e12);
+    const print2 = try std.fmt.allocPrint(allocator, "{f}", .{q2});
+    try testing.expectEqualSlices(u8, "1.2094484932943e12 kg", print2);
+    allocator.free(print2);
+
+    const q3: Quantity(@Vector(3, u16), si.Hz) = .init(.{ 440, 880, 1760 });
+    const print3 = try std.fmt.allocPrint(allocator, "{f}", .{q3});
+    try testing.expectEqualSlices(u8, "@Vector { 440, 880, 1760 } Hz", print3);
+    allocator.free(print3);
+
+    const q4: Quantity([5]f32, si.T) = .init(.{ 2.3, 45, 1.5e7, 1345, 0.0004 });
+    const print4 = try std.fmt.allocPrint(allocator, "{f}", .{ q4 });
+    try std.testing.expectEqualSlices(u8, "@Array { 2.3, 45, ... 1345, 4e-4 } T", print4);
+    allocator.free(print4);
+
+    const q5: Quantity([]u8, si.Pa.div(si.s)) = .init(@constCast(&[2]u8{ 3, 7 }));
+    const print5= try std.fmt.allocPrint(allocator, "{f}", .{ q5 });
+    try std.testing.expectEqualSlices(u8, "@Slice { 3, 7 } Pa s-1", print5);
+    allocator.free(print5);
 }
