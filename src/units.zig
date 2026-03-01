@@ -11,6 +11,7 @@ pub const fraction = @import("units/fraction.zig");
 pub const Fraction = fraction.Fraction;
 pub const system = @import("units/system.zig");
 pub const System = system.System;
+pub const SystemUnit = system.SystemUnit;
 pub const symbol = @import("units/symbol.zig");
 pub const SymbolTerm = symbol.SymbolTerm;
 pub const SymbolExpression = symbol.SymbolExpression;
@@ -74,6 +75,20 @@ pub const Sv = si.Sv;
 
 // cgs
 pub const Gal = cgs.Gal;
+pub const erg = cgs.erg;
+pub const dyn = cgs.dyn;
+pub const Ba = cgs.Ba;
+pub const P = cgs.P;
+pub const St = cgs.St;
+pub const k = cgs.k;
+pub const D = cgs.D;
+pub const Fr = cgs.Fr;
+pub const statA = cgs.statA;
+pub const Bi = cgs.Bi;
+pub const abC = cgs.abC;
+pub const G = cgs.G;
+pub const Mx = cgs.Mx;
+pub const Oe = cgs.Oe;
 
 // EXPORT ANCHOR END
 
