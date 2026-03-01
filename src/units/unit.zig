@@ -184,6 +184,23 @@ pub const Unit = struct {
     pub fn powByAztroFraction(self: Self, frac: Fraction(isize)) Self {
         return self.tryPowByAztroFraction(frac) catch unreachable;
     }
+
+    pub fn format(self: Self, writer: *std.Io.Writer) std.Io.Writer.Error!void {
+        try writer.writeAll("Unit:\n    dim:");
+        inline for (@typeInfo(Dim).@"struct".fields) |field| {
+            const name = field.name;
+            var field_value = @field(self.dim, name);
+            field_value.reduceInPlace();
+            if (!field_value.eqlScalar(0)) {
+                if (field_value.isInt()) {
+                    try writer.print(" {s} = {d},", .{ name, field_value.num });
+                } else {
+                    try writer.print(" {s} = {d}/{d},", .{ name, field_value.num, field_value.denum });
+                }
+            }
+        }
+        try writer.print("\n    scale: {d}\n    offset: {?d}\n    symbols: {f}", .{ self.scale, self.offset, self.symbol });
+    }
 };
 
 test "test init" {
@@ -285,4 +302,19 @@ test "powByAztroFraction" {
     try testing.expectEqual(1, m4PowByFrac.symbol.len);
     try testing.expect(m4PowByFrac.symbol.terms[0].exponent.eqlScalar(1));
     try testing.expectEqualSlices(u8, "m", m4PowByFrac.symbol.terms[0].symbol);
+}
+
+test "format" {
+    const allocator = std.testing.allocator;
+    const m4: Unit = .init(try dimMod.length.mulScalar(4), 1, try SymbolExpression.initFromString("m4"));
+    const expected: []const u8 =
+        \\Unit:
+        \\    dim: l = 4,
+        \\    scale: 1
+        \\    offset: null
+        \\    symbols: m4
+    ;
+    const print = try std.fmt.allocPrint(allocator, "{f}", .{m4});
+    defer allocator.free(print);
+    try testing.expectEqualStrings(expected, print);
 }
