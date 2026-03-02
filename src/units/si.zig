@@ -41,6 +41,7 @@ pub const min: Unit = defUnitFromUnit(s, 60.0, .initUniqueSymbol("min"));
 pub const h: Unit = defUnitFromUnit(min, 60.0, .initUniqueSymbol("h"));
 pub const d: Unit = defUnitFromUnit(h, 24.0, .initUniqueSymbol("day"));
 pub const sday: Unit = defUnitFromUnit(s, 86_164.090_53, .initUniqueSymbol("sday"));
+pub const a: Unit = defUnitFromUnit(d, 365.24, .initUniqueSymbol("a"));
 pub const yr: Unit = defUnitFromUnit(d, 365.25, .initUniqueSymbol("yr"));
 
 // Frequency
