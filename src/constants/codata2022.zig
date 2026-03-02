@@ -1,8 +1,7 @@
 const std = @import("std");
 const constant = @import("constant.zig");
 const Constant = constant.Constant;
-const aztro = @import("aztro");
-const units = aztro.units;
+const units = @import("../units.zig");
 
 const PI_F64: f64 = std.math.pi;
 
@@ -72,10 +71,7 @@ pub const b_wien: Constant(f64, units.m.mul(units.K)) = .init(
 // CGS cosntants.
 // Only constants that cannot be converted directly from S.I. are defined here.
 // Because both e and c are exact, these are also exact by definition.
-pub const e_esu: Constant(f64, units.Fr) = .init(
-    e.quantity.value * c.quantity.value * 10,
-    "Electron Charge", .ESU
-);
+pub const e_esu: Constant(f64, units.Fr) = .init(e.quantity.value * c.quantity.value * 10, "Electron Charge", .ESU);
 
 pub const e_emu: Constant(f64, units.abC) = .init(e.quantity.value / 10, "Electron charge", .EMU);
 

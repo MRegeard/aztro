@@ -2,8 +2,7 @@ const std = @import("std");
 const constant = @import("constant.zig");
 const Constant = constant.Constant;
 const codata = @import("codata2022.zig");
-const aztro = @import("aztro");
-const units = aztro.units;
+const units = @import("../units.zig");
 
 const degToRad = std.math.degreesToRadians;
 const deg_value: f64 = 1 / 3600;
@@ -12,7 +11,7 @@ const deg_value: f64 = 1 / 3600;
 //
 pub const au: Constant(f64, units.m) = .init(1.49597870700e11, "Astronomical Unit", .SI);
 pub const pc: Constant(f64, units.m) = .init(au.quantity.value / degToRad(deg_value), "Parsec", .SI);
-pub const kpc: Constant(f64, units.m) = .init(1000*au.quantity.value / degToRad(deg_value), "Kiloparsec", .SI);
+pub const kpc: Constant(f64, units.m) = .init(1000 * au.quantity.value / degToRad(deg_value), "Kiloparsec", .SI);
 pub const L_bol0: Constant(f64, units.W) = .init(3.0128e28, "Luminosoty for absolute bolometric magnetide 0", .SI);
 
 // Solar quantities
