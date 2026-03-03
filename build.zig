@@ -5,6 +5,7 @@ const available_dev_tools_str: []const u8 =
     \\    export-units
     \\    export-constants
     \\    export-all
+    \\    prefix-units
     \\    clean-units
     \\    clean-constants
     \\    clean-all
@@ -91,11 +92,26 @@ pub fn build(b: *std.Build) void {
 
         const dev_tools_no_args = b.addFail(dev_tools_no_args_msg);
 
+        const exe_prefix_units = b.addExecutable(.{
+            .name = "prefix_units",
+            .root_module = b.createModule(.{
+                .root_source_file = b.path("dev/tools/prefix_builder.zig"),
+                .target = targetOption,
+                .optimize = optimizeOption,
+            }),
+        });
+        exe_prefix_units.root_module.addImport("aztro", module);
+        const run_prefix_units = b.addRunArtifact(exe_prefix_units);
+
         if (b.args) |args| {
             if (args.len == 0) {
                 dev_tools.dependOn(&dev_tools_no_args.step);
             } else {
                 for_loop: for (args) |arg| {
+                    if (std.mem.eql(u8, arg, "prefix-units")) {
+                        dev_tools.dependOn(&run_prefix_units.step);
+                        break :for_loop;
+                    }
                     if (std.mem.eql(u8, arg, "export-all")) {
                         dev_tools.dependOn(&run_units.step);
                         dev_tools.dependOn(&run_constants.step);
