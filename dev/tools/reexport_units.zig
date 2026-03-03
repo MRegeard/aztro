@@ -1,14 +1,6 @@
 const std = @import("std");
 const aztro = @import("aztro");
-const u = aztro.units;
-const si = u.si;
-const cgs = u.cgs;
-const imperial = u.imperial;
-const photometric = u.photometric;
-const misc = u.misc;
-const astrophys = u.astrophys;
-
-const mods = .{ si, cgs, photometric, astrophys, misc, imperial };
+const ustore = aztro.units.ustore;
 
 const file_path = "src/units.zig";
 
@@ -36,26 +28,16 @@ pub fn main() !void {
     const tail = try reader.readAlloc(allocator, len_to_end);
 
     try file_writer.seekTo(write_pos);
-    try writeExport(allocator, writer, mods);
+    @setEvalBranchQuota(2000);
+    try writer.writeByte('\n');
+    inline for (@typeInfo(ustore).@"struct".decls) |dec| {
+        const to_write = try std.fmt.allocPrint(allocator, "pub const {s} = ustore.{s};\n", .{ dec.name, dec.name });
+        try writer.writeAll(to_write);
+    }
+    try writer.writeByte('\n');
     try writer.writeAll(tail);
 
     try writer.flush();
-}
-
-fn writeExport(allocator: std.mem.Allocator, writer: *std.Io.Writer, modules: anytype) !void {
-    try writer.writeByte('\n');
-    inline for (modules) |m| {
-        const full_module_name = @typeName(m);
-        const dot_index = std.mem.indexOf(u8, full_module_name, ".") orelse @panic("No '.' found while triming module name");
-        const module_name = full_module_name[dot_index + 1 ..];
-        const comments_write = try std.fmt.allocPrint(allocator, "// {s}\n", .{module_name});
-        try writer.writeAll(comments_write);
-        inline for (@typeInfo(m).@"struct".decls) |dec| {
-            const to_write = try std.fmt.allocPrint(allocator, "pub const {s} = {s}.{s};\n", .{ dec.name, module_name, dec.name });
-            try writer.writeAll(to_write);
-        }
-        try writer.writeByte('\n');
-    }
 }
 
 fn getWritePos(reader: *std.Io.Reader) usize {
