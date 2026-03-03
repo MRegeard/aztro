@@ -2,13 +2,13 @@ const std = @import("std");
 const unit = @import("unit.zig");
 const Unit = unit.Unit;
 const utils = @import("utils.zig");
+const Quantity = @import("quantity.zig").Quantity;
 const si = @import("si.zig");
 const cst = @import("../constants.zig");
 const defUnitFromUnit = utils.defUnitFromUnit;
 const defUnitFromConst = utils.defUnitFromConst;
 
 const PI_F64: f64 = std.math.pi;
-
 
 // Areas
 //
@@ -36,7 +36,10 @@ pub const u: Unit = defUnitFromConst(cst.u, .initUniqueSymbol("u"));
 // Energy
 //
 pub const eV: Unit = defUnitFromUnit(si.J, cst.e.quantity.value, .initUniqueSymbol("eV"));
-pub const Ry: Unit = defUnitFromUnit(eV, cst.Ryd.quantity.to(eV).value, .initUniqueSymbol("Ry"));
+// TODO: use equivalencies to converto cst.Ryd to eV.
+const h_to_eV_s = cst.h.quantity.to(eV.mul(si.s)) catch unreachable;
+const ryd_to_ev = cst.Ryd.quantity.mul(cst.c.quantity).mul(h_to_eV_s).to(eV) catch unreachable;
+pub const Ry: Unit = defUnitFromUnit(eV, ryd_to_ev.value, .initUniqueSymbol("Ry"));
 
 // Computer
 //
