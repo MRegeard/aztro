@@ -62,6 +62,10 @@ pub fn Quantity(comptime T: type, comptime U: Unit) type {
             return .{ .value = value };
         }
 
+        pub fn getUnit(self: *Self) Unit {
+            return @TypeOf(self.*).unit;
+        }
+
         pub fn add(self: Self, other: Self) Self {
             switch (child_type) {
                 .int, .float, .vector_float, .vector_int => {
@@ -1064,12 +1068,12 @@ test "format" {
     allocator.free(print3);
 
     const q4: Quantity([5]f32, si.T) = .init(.{ 2.3, 45, 1.5e7, 1345, 0.0004 });
-    const print4 = try std.fmt.allocPrint(allocator, "{f}", .{ q4 });
+    const print4 = try std.fmt.allocPrint(allocator, "{f}", .{q4});
     try std.testing.expectEqualSlices(u8, "@Array { 2.3, 45, ... 1345, 4e-4 } T", print4);
     allocator.free(print4);
 
     const q5: Quantity([]u8, si.Pa.div(si.s)) = .init(@constCast(&[2]u8{ 3, 7 }));
-    const print5= try std.fmt.allocPrint(allocator, "{f}", .{ q5 });
+    const print5 = try std.fmt.allocPrint(allocator, "{f}", .{q5});
     try std.testing.expectEqualSlices(u8, "@Slice { 3, 7 } Pa s-1", print5);
     allocator.free(print5);
 }
