@@ -9,6 +9,7 @@ pub fn defUnitFromUnit(
     conversion_scale: f64,
     symbol: SymbolExpression,
 ) Unit {
+    @setEvalBranchQuota(2000);
     if (root.offset != null) {
         @compileError(
             "defUnitFromUnit() cannot be used with affine units (non-zero offset).",
@@ -23,4 +24,12 @@ pub fn defUnitFromConst(
 ) Unit {
     const unit: Unit = @TypeOf(constant.quantity).unit;
     return defUnitFromUnit(unit, constant.quantity.value, symbol);
+}
+
+pub fn compErrOrPanic(comptime msg: []const u8) void {
+    if (@inComptime()) {
+        @compileError(msg);
+    } else {
+        @panic(msg);
+    }
 }
