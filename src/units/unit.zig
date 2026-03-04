@@ -6,7 +6,13 @@ const testing = std.testing;
 const dimMod = @import("dim.zig");
 const Dim = dimMod.Dim;
 const fraction = @import("fraction.zig");
-const SymbolExpression = @import("symbol.zig").SymbolExpression;
+const symbolMod = @import("symbol.zig");
+const SymbolExpression = symbolMod.SymbolExpression;
+const SymbolTerm = symbolMod.SymbolTerm;
+const systemMod = @import("system.zig");
+const System = systemMod.System;
+const SystemUnit = systemMod.SystemUnit;
+const utils = @import("utils.zig");
 
 const FractionError = fraction.FractionError;
 const Fraction = fraction.Fraction;
@@ -201,6 +207,26 @@ pub const Unit = struct {
         }
         try writer.print("\n    scale: {d}\n    offset: {?d}\n    symbols: {f}", .{ self.scale, self.offset, self.symbol });
     }
+
+    pub fn decompose(self: Self, system: System) Self {
+        var new_unit: Self = UNITLESS;
+        const system_unit = system.get_base_unit();
+        inline for (@typeInfo(Dim).@"struct".fields) |field| {
+            const name = field.name;
+            const assoc_unit = system_unit.get(name) orelse {
+                utils.compErrOrPanic("Cannot decompose unit into the requested system");
+                unreachable;
+            };
+            const dim_field_value = @field(self.dim, name);
+            if (!dim_field_value.eqlScalar(0)) {
+                @field(new_unit.dim, name) = dim_field_value;
+                if (assoc_unit.symbol.len != 1) utils.compErrOrPanic("Is this even possible ?");
+                const new_unit_symbol: SymbolTerm = .init(assoc_unit.symbol.terms[0].symbol, dim_field_value);
+                new_unit.symbol.appendInPlace(new_unit_symbol);
+            }
+        }
+        return new_unit;
+    }
 };
 
 test "test init" {
@@ -317,4 +343,21 @@ test "format" {
     const print = try std.fmt.allocPrint(allocator, "{f}", .{m4});
     defer allocator.free(print);
     try testing.expectEqualStrings(expected, print);
+}
+
+test "decompose" {
+    const dimension: Dim = .{
+        .i = Fraction(isize).initInt(0),
+        .j = Fraction(isize).initInt(0),
+        .l = Fraction(isize).initInt(1),
+        .m = Fraction(isize).initInt(1),
+        .n = Fraction(isize).initInt(0),
+        .t = Fraction(isize).initInt(-2),
+        .th = Fraction(isize).initInt(0),
+    };
+    const N: Unit = .init(dimension, 1, try SymbolExpression.initFromString("N"));
+    const N_decomp = N.decompose(.SI);
+    try testing.expectEqual(dimension, N_decomp.dim);
+    try testing.expect((try SymbolExpression.initFromString("m kg s-2")).eql(N_decomp.symbol));
+    try testing.expectApproxEqAbs(1.0, N_decomp.scale, 1e-15);
 }
