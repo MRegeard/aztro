@@ -5,7 +5,7 @@ const Unit = @import("unit.zig").Unit;
 
 pub const BASE_UNIT_SI: SystemUnit = .init(@constCast(&[7][]const u8{ "l", "m", "t", "i", "th", "n", "j" }), @constCast(&[7]Unit{ si.m, si.kg, si.s, si.A, si.K, si.mol, si.cd }));
 
-pub const BASE_UNIT_CGS: SystemUnit = .init(@constCast(&[6][]const u8{ "l", "m", "t", "th", "n", "j" }), @constCast(&[6]Unit{ si.m, si.kg, si.s, si.K, si.mol, si.cd }));
+pub const BASE_UNIT_CGS: SystemUnit = .init(@constCast(&[6][]const u8{ "l", "m", "t", "th", "n", "j" }), @constCast(&[6]Unit{ si.cm, si.g, si.s, si.K, si.mol, si.cd }));
 
 pub const SystemUnit = struct {
     const Self = @This();
