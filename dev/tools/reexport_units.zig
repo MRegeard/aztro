@@ -1,6 +1,6 @@
 const std = @import("std");
-const aztro = @import("aztro");
-const ustore = aztro.units.ustore;
+const zali = @import("zali");
+const ustore = zali.units.ustore;
 
 const file_path = "src/units.zig";
 

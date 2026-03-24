@@ -22,8 +22,8 @@ pub fn build(b: *std.Build) void {
     const targetOption = b.standardTargetOptions(.{});
     const optimizeOption = b.standardOptimizeOption(.{});
 
-    const module = b.addModule("aztro", .{
-        .root_source_file = b.path("src/aztro.zig"),
+    const module = b.addModule("zali", .{
+        .root_source_file = b.path("src/zali.zig"),
         .target = targetOption,
         .optimize = optimizeOption,
     });
@@ -50,7 +50,7 @@ pub fn build(b: *std.Build) void {
                 .optimize = optimizeOption,
             }),
         });
-        exe_units.root_module.addImport("aztro", module);
+        exe_units.root_module.addImport("zali", module);
         const run_units = b.addRunArtifact(exe_units);
 
         // Export constants
@@ -63,7 +63,7 @@ pub fn build(b: *std.Build) void {
                 .optimize = optimizeOption,
             }),
         });
-        exe_constants.root_module.addImport("aztro", module);
+        exe_constants.root_module.addImport("zali", module);
         const run_constants = b.addRunArtifact(exe_constants);
 
         // Clean units export
@@ -100,7 +100,7 @@ pub fn build(b: *std.Build) void {
                 .optimize = optimizeOption,
             }),
         });
-        exe_prefix_units.root_module.addImport("aztro", module);
+        exe_prefix_units.root_module.addImport("zali", module);
         const run_prefix_units = b.addRunArtifact(exe_prefix_units);
 
         if (b.args) |args| {
@@ -156,7 +156,7 @@ pub fn build(b: *std.Build) void {
     {
         const lib = b.addLibrary(.{
             .linkage = .static,
-            .name = "aztro",
+            .name = "zali",
             .root_module = module,
         });
         b.installArtifact(lib);

@@ -1,12 +1,12 @@
 const std = @import("std");
-const aztro = @import("aztro");
-const unitMod = aztro.units.unit;
+const zali = @import("zali");
+const unitMod = zali.units.unit;
 const Unit = unitMod.Unit;
-const si = aztro.units.si;
-const cgs = aztro.units.cgs;
-const ap = aztro.units.astrophys;
-const mc = aztro.units.misc;
-const pm = aztro.units.photometric;
+const si = zali.units.si;
+const cgs = zali.units.cgs;
+const ap = zali.units.astrophys;
+const mc = zali.units.misc;
+const pm = zali.units.photometric;
 
 pub const ap_ptr = ALL_PREFIX;
 
@@ -66,17 +66,17 @@ pub const UPP = [_]UnitPrefixPair{
 
     // Astrophys
     .init(ap.au, ap_ptr),
-    .init(ap.pc, .initAllExclude(@constCast(&[_]SiPrefix{ .k }))),
+    .init(ap.pc, .initAllExclude(@constCast(&[_]SiPrefix{.k}))),
     .init(ap.lyr, ap_ptr),
     .init(ap.ph, ap_ptr),
     .init(ap.Jy, ap_ptr),
     .init(ap.R, ap_ptr),
-    .init(ap.ct, .initAllExclude(@constCast(&[_]SiPrefix{ .p }))),
+    .init(ap.ct, .initAllExclude(@constCast(&[_]SiPrefix{.p}))),
 
     // misc
     .init(mc.barn, ap_ptr),
-    .init(mc.bar, .init(@constCast(&[_]SiPrefix{ .m }))),
-    .init(mc.Torr, .init(@constCast(&[_]SiPrefix{ .m }))),
+    .init(mc.bar, .init(@constCast(&[_]SiPrefix{.m}))),
+    .init(mc.Torr, .init(@constCast(&[_]SiPrefix{.m}))),
     .init(mc.u, .initAllExclude(@constCast(&[_]SiPrefix{ .a, .da }))),
     .init(mc.eV, ap_ptr),
     .init(mc.Ry, ap_ptr),

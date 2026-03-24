@@ -1,7 +1,7 @@
 .{
-    .name = .aztro,
+    .name = .zali,
     .version = "0.0.0",
-    .fingerprint = 0xf50e4e29df818cb9, // Changing this has security and trust implications.
+    .fingerprint = 0x91f5c3a43ce2c41f, // Changing this has security and trust implications.
     .minimum_zig_version = "0.15.2",
     .paths = .{
         "build.zig",

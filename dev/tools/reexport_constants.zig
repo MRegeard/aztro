@@ -1,6 +1,6 @@
 const std = @import("std");
-const aztro = @import("aztro");
-const csts = aztro.constants;
+const zali = @import("zali");
+const csts = zali.constants;
 const codata2022 = csts.codata2022;
 const iau2015 = csts.iau2015;
 
