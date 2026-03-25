@@ -3,8 +3,9 @@ const math = std.math;
 const testing = std.testing;
 const Allocator = std.mem.Allocator;
 const Unit = @import("unit.zig").Unit;
+const System = @import("system.zig").System;
 const si = @import("si.zig");
-const aztest = @import("../test.zig");
+const zatest = @import("../test.zig");
 
 pub const QuantityChildType = enum {
     int,
@@ -387,6 +388,83 @@ pub fn Quantity(comptime T: type, comptime U: Unit) type {
             }
         }
 
+        pub fn reduce(self: Self, comptime op: std.builtin.ReduceOp) Quantity(getChildTypeScalar(T), U) {
+            switch (child_type) {
+                .int, .float => return self,
+                .vector_int, .vector_float => return .init(@reduce(op, self.value)),
+                else => {
+                    const val_type: type = getChildTypeScalar(T);
+                    switch (op) {
+                        .Add => {
+                            var val: val_type = 0;
+                            for (0..self.value.len) |i| {
+                                val += self.value[i];
+                            }
+                            return .init(val);
+                        },
+                        .Mul => {
+                            var val: val_type = 1;
+                            for (0..self.value.len) |i| {
+                                val *= self.value[i];
+                            }
+                            return .init(val);
+                        },
+                        .Min => {
+                            var val: val_type = self.value[0];
+                            if (self.value.len == 1) return .init(val);
+                            for (1..self.value.len) |i| {
+                                if (self.value[i] < val) val = self.value[i];
+                            }
+                            return .init(val);
+                        },
+                        .Max => {
+                            var val: val_type = self.value[0];
+                            if (self.value.len == 1) return .init(val);
+                            for (1..self.value.len) |i| {
+                                if (self.value[i] > val) val = self.value[i];
+                            }
+                            return .init(val);
+                        },
+                        else => @compileError("Unsupported reduce operator, supported operator are `Add`, `Mul`, `Min`, `Max`."),
+                    }
+                },
+            }
+        }
+
+        // The addition of performed with @reduce(.And, ...) will wrap around on integer types
+        // with vector
+        pub fn dot(self: Self, other: anytype) Quantity(getChildTypeScalar(T), U.mul(@TypeOf(other).unit)) {
+            switch (child_type) {
+                .int, .float => return self.mul(other),
+                .vector_int, .vector_float => return .init(self.mul(other).reduce(.Add)),
+                .array_int, .array_float => {
+                    const multiply: Quantity(T, U.mul(@TypeOf(other).unit)) = self.mul(other);
+                    return .init(multiply.reduce(.Add));
+                },
+                .slice_int, .slice_float => {
+                    std.debug.assert(self.value.len == other.value.len);
+                    const val: getChildTypeScalar(T) = 0;
+                    for (0..self.value.len) |i| {
+                        val += self.value[i] * other.value[i];
+                    }
+                    return .init(val);
+                },
+            }
+        }
+
+        fn getChildTypeScalar(comptime Ty: type) type {
+            switch (@typeInfo(Ty)) {
+                .int, .float => return Ty,
+                .vector => |vector| return vector.child,
+                .array => |array| return array.child,
+                .pointer => |pointer| switch (pointer.size) {
+                    .slice => return pointer.child,
+                    else => @compileError("Unsupported pointer type"),
+                },
+                else => unreachable,
+            }
+        }
+
         pub fn to(self: Self, comptime unit_type: Unit) QuantityError!Quantity(T, unit_type) {
             if (!U.dim.eql(unit_type.dim)) {
                 return QuantityError.UnitNotCompatibleError;
@@ -511,6 +589,27 @@ pub fn Quantity(comptime T: type, comptime U: Unit) type {
                     }
                 },
                 else => out.value = self.to(unit_type).value,
+            }
+        }
+
+        pub fn decompose(self: Self, comptime system: System) Quantity(T, U.decompose(system)) {
+            switch (child_type) {
+                .int, .float, .vector_int, .vector_float => return .init(self.value * U.scale),
+                .array_int, .array_float => {
+                    var new_arr = self.value;
+                    for (0..self.value.len) |i| {
+                        new_arr[i] *= U.scale;
+                    }
+                    return .init(new_arr);
+                },
+                .slice_int, .slice_float => @compileError("Cannot convert slice with decompose, use decomposeInto instead."),
+            }
+        }
+
+        pub fn decomposeInto(self: Self, comptime system: System, out: *Quantity(T, U.decompose(system))) void {
+            std.debug.assert(self.value.len == out.value.len);
+            for (0..self.value.len) |i| {
+                out.value[i] = self.value[i] * U.scale;
             }
         }
 
@@ -726,7 +825,7 @@ test "add" {
     const size2: Quantity([3]f64, si.m) = .init(arr2);
     const sizeRes = size1.add(size2);
     const expected: [3]f64 = .{ 2.2, 4.4, 6.6 };
-    try aztest.expectApproxEqAbsIter(expected, sizeRes.value, 1e-15);
+    try zatest.expectApproxEqAbsIter(expected, sizeRes.value, 1e-15);
 }
 
 test "addInPlace" {
@@ -752,7 +851,7 @@ test "addInPlace" {
     const size2: Quantity([3]f64, si.m) = .init(arr2);
     size1.addInPlace(size2);
     const expected: [3]f64 = .{ 2.2, 4.4, 6.6 };
-    try aztest.expectApproxEqAbsIter(expected, size1.value, 1e-15);
+    try zatest.expectApproxEqAbsIter(expected, size1.value, 1e-15);
 }
 
 test "addInto" {
@@ -806,7 +905,7 @@ test "sub" {
     const size4: Quantity([3]f64, si.m) = .init(arr2);
     const sizeRes2 = size3.sub(size4);
     const expected: [3]f64 = .{ 0.0, 1.1, 2.2 };
-    try aztest.expectApproxEqAbsIter(expected, sizeRes2.value, 1e-15);
+    try zatest.expectApproxEqAbsIter(expected, sizeRes2.value, 1e-15);
 }
 
 test "subInPlace" {
@@ -832,7 +931,7 @@ test "subInPlace" {
     const size4: Quantity([3]f64, si.m) = .init(arr2);
     size3.subInPlace(size4);
     const expected: [3]f64 = .{ 0.0, 1.1, 2.2 };
-    try aztest.expectApproxEqAbsIter(expected, size3.value, 1e-15);
+    try zatest.expectApproxEqAbsIter(expected, size3.value, 1e-15);
 }
 
 test "subInto" {
@@ -844,7 +943,7 @@ test "subInto" {
     const q2: Quantity([]f64, si.s) = .init(&arr2);
     var q_subbed: Quantity([]f64, si.s) = .init(&buf);
     q1.subInto(q2, &q_subbed);
-    try aztest.expectApproxEqAbsIter([_]f64{ 1, 1, 1 }, buf, 1e-15);
+    try zatest.expectApproxEqAbsIter([_]f64{ 1, 1, 1 }, buf, 1e-15);
     try testing.expectApproxEqAbs(1, q_subbed.value[0], 1e-15);
 }
 
@@ -872,7 +971,7 @@ test "mul" {
     const size4: Quantity([3]f64, si.m) = .init(arr2);
     const area2 = size3.mul(size4);
     const expected: [3]f64 = .{ 1.21, 4.84, 7.26 };
-    try aztest.expectApproxEqAbsIter(expected, area2.value, 1e-15);
+    try zatest.expectApproxEqAbsIter(expected, area2.value, 1e-15);
 }
 
 test "mulInto" {
@@ -912,7 +1011,7 @@ test "div" {
     const time_2: Quantity([2]f32, si.s) = .init(time_arr);
     const speed_2 = size_2.div(time_2);
     const expected = [_]f32{ 1, 2.5 };
-    try aztest.expectApproxEqAbsIter(expected, speed_2.value, 1e-15);
+    try zatest.expectApproxEqAbsIter(expected, speed_2.value, 1e-15);
 }
 
 test "divInto" {
@@ -946,7 +1045,7 @@ test "pow" {
     //array
     const q4: Quantity([2]f32, si.s) = .init(.{ 4, 16 });
     const q4_pow = q4.pow(-2);
-    try aztest.expectApproxEqAbsIter([2]f32{ 0.0625, 0.00390625 }, q4_pow.value, 1e-15);
+    try zatest.expectApproxEqAbsIter([2]f32{ 0.0625, 0.00390625 }, q4_pow.value, 1e-15);
 }
 
 test "powInto" {
@@ -984,7 +1083,7 @@ test "sqrtInto" {
     const q1: Quantity([]f64, si.m.pow(2)) = .init(&arr1);
     var q_sqrt: Quantity([]f64, si.m.pow(2).sqrt()) = .init(&arr2);
     q1.sqrtInto(&q_sqrt);
-    try aztest.expectApproxEqAbsIter(&[3]f64{ 4, 5, 6 }, q_sqrt.value, 1e-15);
+    try zatest.expectApproxEqAbsIter(&[3]f64{ 4, 5, 6 }, q_sqrt.value, 1e-15);
     const unit = comptime blk: {
         break :blk si.m.pow(2).sqrt();
     };
@@ -1015,7 +1114,7 @@ test "cbrtInto" {
     const q1: Quantity([]f32, si.m) = .init(&arr1);
     var q_cbrt: Quantity([]f32, si.m.cbrt()) = .init(&arr2);
     q1.cbrtInto(&q_cbrt);
-    try aztest.expectApproxEqAbsIter(&[2]f32{ 3, 4 }, q_cbrt.value, 1e-15);
+    try zatest.expectApproxEqAbsIter(&[2]f32{ 3, 4 }, q_cbrt.value, 1e-15);
     try testing.expectEqual(si.m.cbrt(), @TypeOf(q_cbrt).unit);
 }
 
@@ -1047,6 +1146,62 @@ test "toInto" {
     var q2: Quantity([]f64, si.cm) = .init(&arr);
     try q1.toInto(si.cm, &q2);
     try testing.expectEqualSlices(f64, &[2]f64{ 100, 200 }, q2.value);
+}
+
+test "reduce" {
+    // Add
+    const q1: Quantity(u32, si.AA) = .init(23);
+    const q1_red: Quantity(u32, si.AA) = q1.reduce(.Add);
+    try testing.expectEqual(23, q1_red.value);
+    try testing.expectEqual(si.AA, @TypeOf(q1_red).unit);
+
+    // Mul
+    const q2: Quantity(@Vector(3, i32), si.mas) = .init(.{ 2, -4, 10 });
+    const q2_red = q2.reduce(.Mul);
+    try testing.expectEqual(-80, q2_red.value);
+    try testing.expectEqual(si.mas, @TypeOf(q2_red).unit);
+
+    // Min
+    const q3: Quantity([2]f32, si.m) = .init(.{ 4.06, 12.32 });
+    const q3_red = q3.reduce(.Min);
+    try testing.expectApproxEqAbs(4.06, q3_red.value, 1e-15);
+    try testing.expectEqual(si.m, @TypeOf(q3_red).unit);
+
+    // Max
+    const arr: [3]f64 = .{ 2.5, 45.98, 123.3214 };
+    const q4: Quantity([]f64, si.C) = .init(@constCast(&arr));
+    const q4_red: Quantity(f64, si.C) = q4.reduce(.Max);
+    try testing.expectApproxEqAbs(123.3214, q4_red.value, 1e-15);
+    try testing.expectEqual(si.C, @TypeOf(q4_red).unit);
+}
+
+test "decompose" {
+    const q1: Quantity(f64, si.cm) = .init(2.5);
+    const q1_decomp = q1.decompose(.SI);
+    try testing.expectApproxEqAbs(0.025, q1_decomp.value, 1e-15);
+    try testing.expectEqual(si.m, @TypeOf(q1_decomp).unit);
+
+    const q2: Quantity(f64, si.N) = .init(10);
+    const q2_decomp = q2.decompose(.SI);
+    try testing.expectApproxEqAbs(10, q2_decomp.value, 1e-15);
+    const expected_unit_1: Unit = si.kg.mul(si.m).div(si.s.pow(2));
+    try testing.expect(expected_unit_1.eqlExact(@TypeOf(q2_decomp).unit));
+
+    const q3: Quantity([3]f64, si.N.mul(si.J).mul(si.um).div(si.s.pow(3))) = .init(.{ 32, 45, 78 });
+    const q3_decomp = q3.decompose(.SI);
+    try zatest.expectApproxEqAbsIter([3]f64{ 32e-6, 45e-6, 78e-6 }, q3_decomp.value, 1e-15);
+    const expected_unit_2: Unit = si.m.pow(4).mul(si.kg.pow(2)).div(si.s.pow(7));
+    try testing.expect(expected_unit_2.eqlExact(@TypeOf(q3_decomp).unit));
+}
+
+test "decomposeInto" {
+    var arr: [3]f64 = .{ 2, 3, 4 };
+    const q1: Quantity([]f64, si.C) = .init(&arr);
+    var buf: [3]f64 = undefined;
+    var q1_decom: Quantity([]f64, si.s.mul(si.A)) = .init(&buf);
+    q1.decomposeInto(.SI, &q1_decom);
+    try testing.expectEqualSlices(f64, &[3]f64{ 2, 3, 4 }, q1_decom.value);
+    try testing.expect(si.A.mul(si.s).eqlExact(@TypeOf(q1_decom).unit));
 }
 
 test "format" {
