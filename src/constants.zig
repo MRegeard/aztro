@@ -1,3 +1,9 @@
+//! Public entry point for physical constants. Re-exports the `Constant` type and the
+//! source namespaces (`codata2022`, `iau2015`).
+//!
+//! The flat list between the EXPORT ANCHOR markers is generated, lifting each
+//! constant to the top level (e.g. `constants.c` instead of `constants.codata2022.c`).
+//! Each constant's value, unit, and provenance is documented at its definition.
 const std = @import("std");
 const testing = std.testing;
 pub const constant = @import("constants/constant.zig");
