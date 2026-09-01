@@ -5,20 +5,33 @@ const Unit = u.Unit;
 const Quantity = u.Quantity;
 const System = u.System;
 
+/// A named physical constant: a `Quantity` paired with a human-readable description
+/// and the unit system it is expressed in. Generic over the same `T` (value storage
+/// type) and `U` (unit) parameters as `Quantity`, so constants compose with
+/// quantities through the normal arithmetic methods (e.g. `cst.c.quantity.mul(...)`).
 pub fn Constant(comptime T: type, comptime U: Unit) type {
     return struct {
         const Self = @This();
 
+        /// The constant's value and unit.
         quantity: Quantity(T, U),
+        /// Human-readable description, e.g. "Speed of light in vacuum".
         desc: []const u8 = "",
+        /// The unit system the constant is expressed in.
         system: System,
 
+        /// Constructs a constant from a raw value, a description, and a system. The
+        /// unit comes from the type parameter `U`.
         pub fn init(value: T, desc: []const u8, system: System) Self {
             return Self{ .quantity = .init(value), .desc = desc, .system = system };
         }
     };
 }
 
+/// Derives the matching `Constant` type for a given `Quantity` type, extracting the
+/// value storage type from the quantity's `value` field and the unit from its `unit`
+/// declaration. Useful when you have a `Quantity` type in hand and want the constant
+/// type that would hold it.
 pub fn ConstantFromQuantity(comptime quantity_type: type) type {
     const T: type = blk: {
         for (@typeInfo(quantity_type).@"struct".fields) |field| {
