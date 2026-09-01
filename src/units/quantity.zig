@@ -138,6 +138,12 @@ pub fn Quantity(comptime T: type, comptime U: Unit) type {
             return @TypeOf(self.*).unit;
         }
 
+        fn assertScalarQuantity(comptime Ty: type) void {
+            if (@typeInfo(Ty.value_type) != .float) {
+                @compileError("Expected Quantity with scalar (float) value type, got " ++ @typeName(Ty.value_type) ++ " .");
+            }
+        }
+
         /// Adds two quantities of the same unit, returning a new quantity.
         /// Slices have no owned storage to return, so use `addInPlace` or `addInto`.
         pub fn add(self: *const Self, other: Self) Self {
@@ -210,6 +216,69 @@ pub fn Quantity(comptime T: type, comptime U: Unit) type {
             self.addInto(quantity_val, out);
         }
 
+        /// Adds a scalar quantity of the same units, returning a new quantity.
+        /// Cast the scalar value into the quantity value type.
+        pub fn addScalar(self: *const Self, other: anytype) Self {
+            comptime {
+                const OtherType = @TypeOf(other);
+                utils.assertIsQuantity(OtherType);
+                assertScalarQuantity(OtherType);
+            }
+            switch (inner_type) {
+                .scalar, .vector => .init(self.value + @as(getInnerTypeScalarType(T), other.value)),
+                .array => {
+                    var new_array: T = undefined;
+                    for (&new_array, self.value) |*n, s| {
+                        n.* = s + @as(getInnerTypeScalarType(T), other.value);
+                    }
+                    return Quantity(T, U).init(new_array);
+                },
+                .slice => {
+                    @compileError("Cannot add Slice, use subInPlace or subInto instead.");
+                },
+            }
+        }
+
+        /// In-place variant of `addScalar`.
+        pub fn addScalarInPlace(self: *Self, other: anytype) void {
+            comptime {
+                const OtherType = @TypeOf(other);
+                utils.assertIsQuantity(OtherType);
+                assertScalarQuantity(OtherType);
+            }
+            switch (inner_type) {
+                .scalar, .vector => self.value += @as(getInnerTypeScalarType(T), other.valye),
+                .array => {
+                    for (&self.value) |*s| {
+                        s.* += @as(getInnerTypeScalarType(T), other.value);
+                    }
+                },
+                .slice => {
+                    for (self.value) |*s| {
+                        s.* += @as(getInnerTypeScalarType(T), other.value);
+                    }
+                },
+            }
+        }
+
+        /// Buffer-output variant of `addScalar`.
+        /// Cast the scalar value into the quantity value type.
+        pub fn addScalarInto(self: *const Self, other: anytype, out: *Self) void {
+            comptime {
+                const OtherType = @TypeOf(other);
+                utils.assertIsQuantity(OtherType);
+                assertScalarQuantity(OtherType);
+            }
+            switch (inner_type) {
+                .slice => {
+                    for (self.value, out.value) |s, *buf| {
+                        buf.* = s + @as(getInnerTypeScalarType(T), other.value);
+                    }
+                },
+                else => out.value = self.addScalar(other).value,
+            }
+        }
+
         /// Subtracts two quantities of the same unit, returning a new quantity.
         /// Slices have no owned storage to return, so use `subInPlace` or `subInto`.
         pub fn sub(self: *const Self, other: Self) Self {
@@ -279,6 +348,69 @@ pub fn Quantity(comptime T: type, comptime U: Unit) type {
         pub fn subValueInto(self: *const Self, val: T, out: *Self) void {
             const quantity_val: Quantity(T, U) = .init(val);
             self.subInto(quantity_val, out);
+        }
+
+        /// Substracts a scalar quantity of the same units, returning a new quantity.
+        /// Cast the scalar value into the quantity value type.
+        pub fn subcalar(self: *const Self, other: anytype) Self {
+            comptime {
+                const OtherType = @TypeOf(other);
+                utils.assertIsQuantity(OtherType);
+                assertScalarQuantity(OtherType);
+            }
+            switch (inner_type) {
+                .scalar, .vector => .init(self.value - @as(getInnerTypeScalarType(T), other.value)),
+                .array => {
+                    var new_array: T = undefined;
+                    for (&new_array, self.value) |*n, s| {
+                        n.* = s - @as(getInnerTypeScalarType(T), other.value);
+                    }
+                    return Quantity(T, U).init(new_array);
+                },
+                .slice => {
+                    @compileError("Cannot add Slice, use subInPlace or subInto instead.");
+                },
+            }
+        }
+
+        /// In-place variant of `subScalar`.
+        pub fn subScalarInPlace(self: *Self, other: anytype) void {
+            comptime {
+                const OtherType = @TypeOf(other);
+                utils.assertIsQuantity(OtherType);
+                assertScalarQuantity(OtherType);
+            }
+            switch (inner_type) {
+                .scalar, .vector => self.value -= @as(getInnerTypeScalarType(T), other.valye),
+                .array => {
+                    for (&self.value) |*s| {
+                        s.* -= @as(getInnerTypeScalarType(T), other.value);
+                    }
+                },
+                .slice => {
+                    for (self.value) |*s| {
+                        s.* -= @as(getInnerTypeScalarType(T), other.value);
+                    }
+                },
+            }
+        }
+
+        /// Buffer-output variant of `subScalar`.
+        /// Cast the scalar value into the quantity value type.
+        pub fn subScalarInto(self: *const Self, other: anytype, out: *Self) void {
+            comptime {
+                const OtherType = @TypeOf(other);
+                utils.assertIsQuantity(OtherType);
+                assertScalarQuantity(OtherType);
+            }
+            switch (inner_type) {
+                .slice => {
+                    for (self.value, out.value) |s, *buf| {
+                        buf.* = s - @as(getInnerTypeScalarType(T), other.value);
+                    }
+                },
+                else => out.value = self.subScalar(other).value,
+            }
         }
 
         /// Multiplies two quantities, producing a quantity whose unit is the product
@@ -359,6 +491,48 @@ pub fn Quantity(comptime T: type, comptime U: Unit) type {
             self.mulInto(quantity_val, out);
         }
 
+        /// Multiplies by a scalar quantity (float value). Cast the scalar
+        /// value into the quantity value type. This is the equivanlent to
+        /// `mulValue` when the Unit matters.
+        pub fn mulScalar(self: *const Self, other: anytype) Quantity(T, U.mul(@TypeOf(other).Unit)) {
+            comptime {
+                const OtherType = @TypeOf(other);
+                utils.assertIsQuantity(OtherType);
+                assertScalarQuantity(OtherType);
+            }
+            switch (inner_type) {
+                .scalar, .vector => return .init(self.value * @as(getInnerTypeScalarType(T), other.value)),
+                .array => {
+                    var new_array: T = undefined;
+                    for (&new_array, self.value) |*n, s| {
+                        n.* = s * @as(getInnerTypeScalarType(T), other.value);
+                    }
+                    return .init(new_array);
+                },
+                .slice => @compileError("Cannot multiply Slice with scalar quantity, use mulScalarInto instead."),
+            }
+        }
+
+        /// Buffer-output variant of `mulScalar`.
+        /// Cast the scalar value into the quantity value type.
+        pub fn mulScalarInto(self: *const Self, other: anytype, out: *Quantity(T, U.mul(@TypeOf(other).Unit))) void {
+            comptime {
+                const OtherType = @TypeOf(other);
+                utils.assertIsQuantity(OtherType);
+                assertScalarQuantity(OtherType);
+            }
+            switch (inner_type) {
+                .slice => {
+                    for (self.value, out.value) |s, *buf| {
+                        buf.* = s * @as(getInnerTypeScalarType(T), other.value);
+                    }
+                },
+                else => {
+                    out.value = self.mulScalar(other).value;
+                },
+            }
+        }
+
         /// Divides two quantities, producing a quantity whose unit is the quotient
         /// `U / other.unit`. `other` may carry any unit but must have the same value
         /// storage type `T`. Slices use `divInto`.
@@ -430,6 +604,48 @@ pub fn Quantity(comptime T: type, comptime U: Unit) type {
         pub fn divValueInto(self: *const Self, val: T, out: *Self) void {
             const quantity_val: Quantity(T, unitMod.UNITLESS) = .init(val);
             self.divInto(quantity_val, out);
+        }
+
+        /// Divides by a scalar quantity (float value). Cast the scalar
+        /// value into the quantity value type. This is the equivanlent to
+        /// `divValue` when the Unit matters.
+        pub fn divScalar(self: *const Self, other: anytype) Quantity(T, U.mul(@TypeOf(other).Unit)) {
+            comptime {
+                const OtherType = @TypeOf(other);
+                utils.assertIsQuantity(OtherType);
+                assertScalarQuantity(OtherType);
+            }
+            switch (inner_type) {
+                .scalar, .vector => return .init(self.value / @as(getInnerTypeScalarType(T), other.value)),
+                .array => {
+                    var new_array: T = undefined;
+                    for (&new_array, self.value) |*n, s| {
+                        n.* = s / @as(getInnerTypeScalarType(T), other.value);
+                    }
+                    return .init(new_array);
+                },
+                .slice => @compileError("Cannot multiply Slice with scalar quantity, use mulScalarInto instead."),
+            }
+        }
+
+        /// Buffer-output variant of `divScalar`.
+        /// Cast the scalar value into the quantity value type.
+        pub fn divScalarInto(self: *const Self, other: anytype, out: *Quantity(T, U.mul(@TypeOf(other).Unit))) void {
+            comptime {
+                const OtherType = @TypeOf(other);
+                utils.assertIsQuantity(OtherType);
+                assertScalarQuantity(OtherType);
+            }
+            switch (inner_type) {
+                .slice => {
+                    for (self.value, out.value) |s, *buf| {
+                        buf.* = s / @as(getInnerTypeScalarType(T), other.value);
+                    }
+                },
+                else => {
+                    out.value = self.divScalar(other).value;
+                },
+            }
         }
 
         /// Raises the quantity to a comptime integer power, scaling the unit by the
@@ -747,6 +963,10 @@ pub fn Quantity(comptime T: type, comptime U: Unit) type {
                 },
                 else => out.value = self.to(unit_type).value,
             }
+        }
+
+        pub fn toIntoWithEquivalency(self: *const Self, comptime unit_type: Unit, out: *Quantity(T, unit_type), comptime equivalency: Equivalency, args: anytype) void {
+            equivalency.convertInto(T, U, self, unit_type, out, args);
         }
 
         // Decomposes the unit into base units of the given `system` (e.g. expanding
