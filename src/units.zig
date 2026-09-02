@@ -1,3 +1,10 @@
+//! Public entry point for the units library. Re-exports the core types (`Unit`,
+//! `Quantity`, `Dim`, `Fraction`, `System`, `Symbol*`, `Equivalency`) and the unit
+//! system namespaces (`si`, `cgs`, `astrophys`, ...).
+//!
+//! The flat list of unit aliases between the EXPORT ANCHOR markers is generated:
+//! it lifts every unit from `units_storage.zig` to the top level so callers can
+//! write `units.km` instead of `units.ustore.km`. Edit the generator, not the list.
 const std = @import("std");
 const testing = std.testing;
 
