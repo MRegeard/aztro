@@ -1,20 +1,3 @@
-const std = @import("std");
-const testing = std.testing;
-const dim_mod = @import("dim.zig");
-const Dim = dim_mod.Dim;
-const unit_mod = @import("unit.zig");
-const Unit = unit_mod.Unit;
-const UNITLESS = unit_mod.UNITLESS;
-const quantity_mod = @import("quantity.zig");
-const Quantity = quantity_mod.Quantity;
-const utils = @import("utils.zig");
-const si = @import("si.zig");
-const photo = @import("photometric.zig");
-const misc = @import("misc.zig");
-const cst = @import("../constants.zig");
-const imperial = @import("imperial.zig");
-const us = @import("units_storage.zig");
-
 //! Physical equivalencies: conversions between units of *different* dimensions that
 //! are related by a physical law or convention (frequency <-> wavelength, mass <->
 //! energy, redshift <-> velocity, and so on). Ordinary same-dimension conversions
@@ -32,6 +15,23 @@ const us = @import("units_storage.zig");
 //! zero-point flux, ...) take a comptime-checked `args` tuple; those that don't
 //! ignore it. Argument validation lives in each struct's `checkArgs`, which emits a
 //! `@compileError` on misuse.
+
+const std = @import("std");
+const testing = std.testing;
+const dim_mod = @import("dim.zig");
+const Dim = dim_mod.Dim;
+const unit_mod = @import("unit.zig");
+const Unit = unit_mod.Unit;
+const UNITLESS = unit_mod.UNITLESS;
+const quantity_mod = @import("quantity.zig");
+const Quantity = quantity_mod.Quantity;
+const utils = @import("utils.zig");
+const si = @import("si.zig");
+const photo = @import("photometric.zig");
+const misc = @import("misc.zig");
+const cst = @import("../constants.zig");
+const imperial = @import("imperial.zig");
+const us = @import("units_storage.zig");
 
 /// Spectral equivalency: converts between the various ways of locating a point in a
 /// spectrum -- frequency, wavelength, energy, spectroscopic wavenumber (m-1), and
@@ -52,6 +52,12 @@ pub const spectral_equivalency = struct {
         return fromHz(T, &as_Hz, U_out);
     }
 
+    pub fn convertInto(comptime T: type, comptime U_in: Unit, input_quantity: *const Quantity(T, U_in), comptime U_out: Unit, out: *Quantity(T, U_out)) void {
+        var temp_Hz: Quantity(T, si.Hz) = .init(out.value);
+        toHzInto(T, U_in, input_quantity, &temp_Hz);
+        fromHzInto(T, &temp_Hz, U_out, out);
+    }
+
     fn toHz(comptime T: type, comptime U_in: Unit, input_quantity: *const Quantity(T, U_in)) Quantity(T, si.Hz) {
         const two_pi: Quantity(T, si.rad) = .initScalarValue(2 * std.math.pi);
         const h: Quantity(T, cst.h.quantity.getUnit()) = .initScalarValue(cst.h.quantity.value);
@@ -65,6 +71,36 @@ pub const spectral_equivalency = struct {
         unreachable;
     }
 
+    fn toHzInto(comptime T: type, comptime U_in: Unit, input_quantity: *const Quantity(T, U_in), out: *Quantity(T, Hz)) void {
+        const two_pi: Quantity(f64, si.rad) = .init(2 * std.math.pi);
+        const h = cst.h.quantity;
+        const c = cst.c.quantity;
+        if (comptime U_in.dim.eql(dim_freq)) {
+            input_quantity.toInto(Hz, out);
+        } else if (comptime U_in.dim.eql(dim_length)) {
+            var temp_pow: Quantity(T, U_in.pow(-1)) = .init(out.value);
+            input_quantity.powInto(-1, &temp_pow);
+            var temp_mul_c: Quantity(T, temp_pow.getUnit().mul(c.getUnit())) = .init(temp_pow.value);
+            temp_pow.mulScalarInto(c, &temp_mul_c);
+            temp_mul_c.toInto(Hz, out);
+        } else if (comptime U_in.dim.eql(dim_energy)) {
+            var temp_div_h: Quantity(T, U_in.div(h.getUnit())) = .init(out.value);
+            input_quantity.divScalarInto(h, &temp_div_h);
+            temp_div_h.toInto(Hz, out);
+        } else if (comptime U_in.dim.eql(dim_wavenumber_spec)) {
+            var temp_mul_c: Quantity(T, U_in.mul(c.getUnit())) = .init(out.value);
+            input_quantity.mulScalarInto(c, &temp_mul_c);
+            temp_mul_c.toInto(Hz, out);
+        } else if (comptime U_in.dim.eql(dim_wavenumber_ang)) {
+            const c_div_two_pi = c.div(two_pi);
+            var temp_mul: Quantity(T, U_in.mul(c_div_two_pi.getUnit())) = .init(out.value);
+            input_quantity.mulScalarInto(c_div_two_pi, &temp_mul);
+            temp_mul.toInto(Hz, out);
+        } else {
+            @compileError("Unknown spectral equivalency conversion.");
+        }
+    }
+
     fn fromHz(comptime T: type, input_quantity: *const Quantity(T, Hz), comptime U_out: Unit) Quantity(T, U_out) {
         const two_pi: Quantity(T, si.rad) = .initScalarValue(2 * std.math.pi);
         const h: Quantity(T, cst.h.quantity.getUnit()) = .initScalarValue(cst.h.quantity.value);
@@ -76,6 +112,36 @@ pub const spectral_equivalency = struct {
         if (comptime U_out.dim.eql(dim_wavenumber_ang)) return input_quantity.mul(two_pi).div(c).to(U_out);
         if (@inComptime()) @compileError("Unknown spectral equivalency conversion.");
         unreachable;
+    }
+
+    fn fromHzInto(comptime T: type, input_quantity: *const Quantity(T, Hz), comptime U_out: Unit, out: *Quantity(T, U_out)) void {
+        const two_pi: Quantity(f64, si.rad) = .init(2 * std.math.pi);
+        const c = cst.c.quantity;
+        const h = cst.h.quantity;
+        if (comptime U_out.dim.eql(dim_freq)) {
+            input_quantity.toInto(U_out, out);
+        } else if (comptime U_out.dim.eql(dim_length)) {
+            var temp_pow: Quantity(T, Hz.pow(-1)) = .init(out.value);
+            input_quantity.powInto(-1, &temp_pow);
+            var temp_mul_c: Quantity(T, Hz.pow(-1).mul(c.getUnit())) = .init(out.value);
+            temp_pow.mulScalarInto(c, &temp_mul_c);
+            temp_mul_c.toInto(U_out, out);
+        } else if (comptime U_out.dim.eql(dim_energy)) {
+            var temp_mul_h: Quantity(T, Hz.mul(h.getUnit())) = .init(out.value);
+            input_quantity.mulScalarInto(h, &temp_mul_h);
+            temp_mul_h.toInto(U_out, out);
+        } else if (comptime U_out.dim.eql(dim_wavenumber_spec)) {
+            var temp_div_c: Quantity(T, Hz.div(c.getUnit())) = .init(out.value);
+            input_quantity.divScalarInto(c, &temp_div_c);
+            temp_div_c.toInto(U_out, out);
+        } else if (comptime U_out.dim.eql(dim_wavenumber_ang)) {
+            const two_pi_div_c = two_pi.div(c);
+            var temp_mul: Quantity(T, Hz.mul(two_pi_div_c.getUnit())) = .init(out.value);
+            input_quantity.mulScalarInto(two_pi_div_c, &temp_mul);
+            temp_mul.toInto(U_out, out);
+        } else {
+            @compileError("Unknown spectral equivalency conversion.");
+        }
     }
 };
 
@@ -1071,6 +1137,18 @@ pub const Equivalency = enum {
             .spectral_density => spectral_density_equivalency.convert(T, U_in, input_quantity, U_out, args),
         };
     }
+
+    pub fn convertInto(comptime self: Self, comptime T: type, comptime U_in: Unit, input_quantity: *const Quantity(T, U_in), comptime U_out: Unit, out: *Quantity(T, U_out), args: anytype) void {
+        const ArgsType = @TypeOf(args);
+        const args_type_info = @typeInfo(ArgsType);
+        if (args_type_info != .@"struct") {
+            @compileError("Expected tuple or struct argument, found " ++ @typeName(ArgsType));
+        }
+        return switch (self) {
+            .spectral => spectral_equivalency.convertInto(T, U_in, input_quantity, U_out, out),
+            else => @panic("TODO"),
+        };
+    }
 };
 
 test "spectral equivalency" {
@@ -1112,6 +1190,10 @@ test "spectral equivalency" {
     try testing.expectEqual(si.rad.div(si.cm), green_wn_ang.getUnit());
     const green_wl_back_ang = spectral_equivalency.convert(f64, si.rad.div(si.cm), &green_wn_ang, us.nm);
     try testing.expectApproxEqRel(green_wl.value, green_wl_back_ang.value, 1e-15);
+}
+
+test "spectral equivalency Into" {
+    @panic("TODO");
 }
 
 test "mass energy equivalency" {
