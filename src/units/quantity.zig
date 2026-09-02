@@ -224,12 +224,19 @@ pub fn Quantity(comptime T: type, comptime U: Unit) type {
                 utils.assertIsQuantity(OtherType);
                 assertScalarQuantity(OtherType);
             }
+            const other_value_float: getInnerTypeScalarType(T) = @floatCast(other.value);
             switch (inner_type) {
-                .scalar, .vector => .init(self.value + @as(getInnerTypeScalarType(T), other.value)),
+                .scalar => {
+                    return .init(self.value + other_value_float);
+                },
+                .vector => {
+                    const other_value_vec: T = @splat(other_value_float);
+                    return .init(self.value + other_value_vec);
+                },
                 .array => {
                     var new_array: T = undefined;
                     for (&new_array, self.value) |*n, s| {
-                        n.* = s + @as(getInnerTypeScalarType(T), other.value);
+                        n.* = s + other_value_float;
                     }
                     return Quantity(T, U).init(new_array);
                 },
@@ -246,16 +253,23 @@ pub fn Quantity(comptime T: type, comptime U: Unit) type {
                 utils.assertIsQuantity(OtherType);
                 assertScalarQuantity(OtherType);
             }
+            const other_value_float: getInnerTypeScalarType(T) = @floatCast(other.value);
             switch (inner_type) {
-                .scalar, .vector => self.value += @as(getInnerTypeScalarType(T), other.valye),
+                .scalar => {
+                    self.value += other_value_float;
+                },
+                .vector => {
+                    const other_value_vec: T = @splat(other_value_float);
+                    self.value += other_value_vec;
+                },
                 .array => {
                     for (&self.value) |*s| {
-                        s.* += @as(getInnerTypeScalarType(T), other.value);
+                        s.* += other_value_float;
                     }
                 },
                 .slice => {
                     for (self.value) |*s| {
-                        s.* += @as(getInnerTypeScalarType(T), other.value);
+                        s.* += other_value_float;
                     }
                 },
             }
@@ -269,10 +283,11 @@ pub fn Quantity(comptime T: type, comptime U: Unit) type {
                 utils.assertIsQuantity(OtherType);
                 assertScalarQuantity(OtherType);
             }
+            const other_value_float: getInnerTypeScalarType(T) = @floatCast(other.value);
             switch (inner_type) {
                 .slice => {
                     for (self.value, out.value) |s, *buf| {
-                        buf.* = s + @as(getInnerTypeScalarType(T), other.value);
+                        buf.* = s + other_value_float;
                     }
                 },
                 else => out.value = self.addScalar(other).value,
@@ -352,18 +367,25 @@ pub fn Quantity(comptime T: type, comptime U: Unit) type {
 
         /// Substracts a scalar quantity of the same units, returning a new quantity.
         /// Cast the scalar value into the quantity value type.
-        pub fn subcalar(self: *const Self, other: anytype) Self {
+        pub fn subScalar(self: *const Self, other: anytype) Self {
             comptime {
                 const OtherType = @TypeOf(other);
                 utils.assertIsQuantity(OtherType);
                 assertScalarQuantity(OtherType);
             }
+            const other_value_float: getInnerTypeScalarType(T) = @floatCast(other.value);
             switch (inner_type) {
-                .scalar, .vector => .init(self.value - @as(getInnerTypeScalarType(T), other.value)),
+                .scalar => {
+                    return .init(self.value - other_value_float);
+                },
+                .vector => {
+                    const other_value_vec: T = @splat(other_value_float);
+                    return .init(self.value - other_value_vec);
+                },
                 .array => {
                     var new_array: T = undefined;
                     for (&new_array, self.value) |*n, s| {
-                        n.* = s - @as(getInnerTypeScalarType(T), other.value);
+                        n.* = s - other_value_float;
                     }
                     return Quantity(T, U).init(new_array);
                 },
@@ -380,16 +402,21 @@ pub fn Quantity(comptime T: type, comptime U: Unit) type {
                 utils.assertIsQuantity(OtherType);
                 assertScalarQuantity(OtherType);
             }
+            const other_value_float: getInnerTypeScalarType(T) = @floatCast(other.value);
             switch (inner_type) {
-                .scalar, .vector => self.value -= @as(getInnerTypeScalarType(T), other.valye),
+                .scalar => self.value -= other_value_float,
+                .vector => {
+                    const other_value_vec: T = @splat(other_value_float);
+                    self.value -= other_value_vec;
+                },
                 .array => {
                     for (&self.value) |*s| {
-                        s.* -= @as(getInnerTypeScalarType(T), other.value);
+                        s.* -= other_value_float;
                     }
                 },
                 .slice => {
                     for (self.value) |*s| {
-                        s.* -= @as(getInnerTypeScalarType(T), other.value);
+                        s.* -= other_value_float;
                     }
                 },
             }
@@ -403,10 +430,11 @@ pub fn Quantity(comptime T: type, comptime U: Unit) type {
                 utils.assertIsQuantity(OtherType);
                 assertScalarQuantity(OtherType);
             }
+            const other_value_float: getInnerTypeScalarType(T) = @floatCast(other.value);
             switch (inner_type) {
                 .slice => {
                     for (self.value, out.value) |s, *buf| {
-                        buf.* = s - @as(getInnerTypeScalarType(T), other.value);
+                        buf.* = s - other_value_float;
                     }
                 },
                 else => out.value = self.subScalar(other).value,
@@ -494,18 +522,23 @@ pub fn Quantity(comptime T: type, comptime U: Unit) type {
         /// Multiplies by a scalar quantity (float value). Cast the scalar
         /// value into the quantity value type. This is the equivanlent to
         /// `mulValue` when the Unit matters.
-        pub fn mulScalar(self: *const Self, other: anytype) Quantity(T, U.mul(@TypeOf(other).Unit)) {
+        pub fn mulScalar(self: *const Self, other: anytype) Quantity(T, U.mul(@TypeOf(other).unit)) {
             comptime {
                 const OtherType = @TypeOf(other);
                 utils.assertIsQuantity(OtherType);
                 assertScalarQuantity(OtherType);
             }
+            const other_value_float: getInnerTypeScalarType(T) = @floatCast(other.value);
             switch (inner_type) {
-                .scalar, .vector => return .init(self.value * @as(getInnerTypeScalarType(T), other.value)),
+                .scalar => return .init(self.value * other_value_float),
+                .vector => {
+                    const other_value_vec: T = @splat(other_value_float);
+                    return .init(self.value * other_value_vec);
+                },
                 .array => {
                     var new_array: T = undefined;
                     for (&new_array, self.value) |*n, s| {
-                        n.* = s * @as(getInnerTypeScalarType(T), other.value);
+                        n.* = s * other_value_float;
                     }
                     return .init(new_array);
                 },
@@ -515,16 +548,17 @@ pub fn Quantity(comptime T: type, comptime U: Unit) type {
 
         /// Buffer-output variant of `mulScalar`.
         /// Cast the scalar value into the quantity value type.
-        pub fn mulScalarInto(self: *const Self, other: anytype, out: *Quantity(T, U.mul(@TypeOf(other).Unit))) void {
+        pub fn mulScalarInto(self: *const Self, other: anytype, out: *Quantity(T, U.mul(@TypeOf(other).unit))) void {
             comptime {
                 const OtherType = @TypeOf(other);
                 utils.assertIsQuantity(OtherType);
                 assertScalarQuantity(OtherType);
             }
+            const other_value_float: getInnerTypeScalarType(T) = @floatCast(other.value);
             switch (inner_type) {
                 .slice => {
                     for (self.value, out.value) |s, *buf| {
-                        buf.* = s * @as(getInnerTypeScalarType(T), other.value);
+                        buf.* = s * other_value_float;
                     }
                 },
                 else => {
@@ -609,18 +643,23 @@ pub fn Quantity(comptime T: type, comptime U: Unit) type {
         /// Divides by a scalar quantity (float value). Cast the scalar
         /// value into the quantity value type. This is the equivanlent to
         /// `divValue` when the Unit matters.
-        pub fn divScalar(self: *const Self, other: anytype) Quantity(T, U.mul(@TypeOf(other).Unit)) {
+        pub fn divScalar(self: *const Self, other: anytype) Quantity(T, U.div(@TypeOf(other).unit)) {
             comptime {
                 const OtherType = @TypeOf(other);
                 utils.assertIsQuantity(OtherType);
                 assertScalarQuantity(OtherType);
             }
+            const other_value_float: getInnerTypeScalarType(T) = @floatCast(other.value);
             switch (inner_type) {
-                .scalar, .vector => return .init(self.value / @as(getInnerTypeScalarType(T), other.value)),
+                .scalar => return .init(self.value / other_value_float),
+                .vector => {
+                    const other_value_vec: T = @splat(other_value_float);
+                    return .init(self.value / other_value_vec);
+                },
                 .array => {
                     var new_array: T = undefined;
                     for (&new_array, self.value) |*n, s| {
-                        n.* = s / @as(getInnerTypeScalarType(T), other.value);
+                        n.* = s / other_value_float;
                     }
                     return .init(new_array);
                 },
@@ -630,16 +669,17 @@ pub fn Quantity(comptime T: type, comptime U: Unit) type {
 
         /// Buffer-output variant of `divScalar`.
         /// Cast the scalar value into the quantity value type.
-        pub fn divScalarInto(self: *const Self, other: anytype, out: *Quantity(T, U.mul(@TypeOf(other).Unit))) void {
+        pub fn divScalarInto(self: *const Self, other: anytype, out: *Quantity(T, U.div(@TypeOf(other).unit))) void {
             comptime {
                 const OtherType = @TypeOf(other);
                 utils.assertIsQuantity(OtherType);
                 assertScalarQuantity(OtherType);
             }
+            const other_value_float: getInnerTypeScalarType(T) = @floatCast(other.value);
             switch (inner_type) {
                 .slice => {
                     for (self.value, out.value) |s, *buf| {
-                        buf.* = s / @as(getInnerTypeScalarType(T), other.value);
+                        buf.* = s / other_value_float;
                     }
                 },
                 else => {
@@ -1165,6 +1205,28 @@ test "add value methods" {
     try zatest.expectApproxEqAbsIter(@constCast(&[3]f64{ 50, 70, 90 }), q_add3.value, 1e-15);
 }
 
+test "add scalar methods" {
+    const q1: Quantity(f64, si.arcmin) = .init(12);
+    const q2: Quantity(f64, si.arcmin) = .init(14);
+    const added = q1.addScalar(q2);
+    try testing.expectApproxEqAbs(26, added.value, 1e-15);
+    try testing.expectEqual(si.arcmin, added.getUnit());
+
+    var q3: Quantity(@Vector(2, f64), us.TeV) = .init(.{ 3, 6 });
+    const q4: Quantity(f64, us.TeV) = .init(10);
+    q3.addScalarInPlace(q4);
+    const val: [2]f64 = q3.value;
+    const exp: [2]f64 = .{ 13, 16 };
+    try zatest.expectApproxEqAbsIter(exp, val, 1e-15);
+
+    var buf: [4]f32 = undefined;
+    const q5: Quantity([]f32, si.deg) = .init(@constCast(&[_]f32{ 1, 2, 3, 4 }));
+    const q6: Quantity(f64, si.deg) = .init(6);
+    var added_2: Quantity([]f32, si.deg) = .init(&buf);
+    q5.addScalarInto(q6, &added_2);
+    try zatest.expectApproxEqAbsIter(@constCast(&[_]f32{ 7, 8, 9, 10 }), added_2.value, 1e-15);
+}
+
 test "sub" {
     //float
     const size1 = Quantity(f64, si.AA).init(12);
@@ -1249,6 +1311,24 @@ test "sub value methods" {
     try zatest.expectApproxEqAbsIter(@constCast(&[2]f32{ 0.0, 0.0 }), q_sub3.value, 1e-15);
 }
 
+test "sub scalar methods" {
+    const q1: Quantity(f64, si.Hz) = .init(32);
+    const q2: Quantity(f64, si.Hz) = .init(2);
+    const sub_1 = q1.subScalar(q2);
+    try testing.expectApproxEqAbs(30, sub_1.value, 1e-15);
+    try testing.expectEqual(si.Hz, sub_1.getUnit());
+
+    var q3: Quantity([3]f32, si.m) = .init(.{ 10, 9, 8 });
+    q3.subScalarInPlace(q2);
+    try zatest.expectApproxEqAbsIter([_]f32{ 8, 7, 6 }, q3.value, 1e-15);
+
+    var buf: [2]f64 = undefined;
+    var out: Quantity([]f64, si.F) = .init(&buf);
+    const q4: Quantity([]f64, si.F) = .init(@constCast(&[_]f64{ 15, 25 }));
+    q4.subScalarInto(q2, &out);
+    try zatest.expectApproxEqAbsIter(@constCast(&[_]f64{ 13, 23 }), out.value, 1e-15);
+}
+
 test "mul" {
     // float
     const size1 = Quantity(f64, si.m).init(10);
@@ -1307,6 +1387,26 @@ test "mul value methods" {
     q3.mulValueInto(@constCast(&[1]f64{-4}), &q_mul3);
     try zatest.expectApproxEqAbsIter(@constCast(&[_]f64{80}), q_mul3.value, 1e-15);
     try testing.expectEqual(si.deg, q_mul3.getUnit());
+}
+
+test "mul scalar method" {
+    const q1: Quantity(f64, si.m) = .init(64);
+    const q2: Quantity(f32, si.s) = .init(2);
+    const q_mul1 = q1.mulScalar(q2);
+    try testing.expectApproxEqAbs(128, q_mul1.value, 1e-15);
+    try testing.expectEqual(si.m.mul(si.s), q_mul1.getUnit());
+
+    var q3: Quantity([2]f64, si.g) = .init(.{ 2, 4 });
+    const q_mul2 = q3.mulScalar(q2);
+    try zatest.expectApproxEqAbsIter([2]f64{ 4, 8 }, q_mul2.value, 1e-15);
+    try testing.expectEqual(si.g.mul(si.s), q_mul2.getUnit());
+
+    var buf: [3]f64 = undefined;
+    const q4: Quantity([]f64, si.deg) = .init(@constCast(&[3]f64{ 3, 6, 9 }));
+    var q_mul3: Quantity([]f64, si.deg.mul(si.s)) = .init(&buf);
+    q4.mulScalarInto(q2, &q_mul3);
+    try zatest.expectApproxEqAbsIter(@constCast(&[_]f64{ 6, 12, 18 }), q_mul3.value, 1e-15);
+    try testing.expectEqual(si.deg.mul(si.s), q_mul3.getUnit());
 }
 
 test "div" {
@@ -1368,6 +1468,26 @@ test "div value methods" {
     q2.divValueInto(@constCast(&[2]f32{ 2, 2 }), &q_div3);
     try zatest.expectApproxEqAbsIter(@constCast(&[2]f32{ 1.5, 0.5 }), q_div3.value, 1e-15);
     try testing.expectEqual(si.m, q_div3.getUnit());
+}
+
+test "div scalar methods" {
+    const q1: Quantity(f32, si.m) = .init(12);
+    const q2: Quantity(f64, si.s) = .init(2);
+    const divided = q1.divScalar(q2);
+    try testing.expectApproxEqAbs(6, divided.value, 1e-15);
+    try testing.expectEqual(si.m.div(si.s), divided.getUnit());
+
+    const q3: Quantity(@Vector(3, f64), si.g) = .init(.{4, 6, 8});
+    const divided_2 = q3.divScalar(q2);
+    const val: [3]f64 = divided_2.value;
+    const exp: [3]f64 = .{2, 3, 4};
+    try zatest.expectApproxEqAbsIter(exp, val, 1e-15);
+
+    var buf: [2]f32 = undefined;
+    var out: Quantity([]f32, si.Hz.div(si.s)) = .init(&buf);
+    const q4: Quantity([]f32, si.Hz) = .init(@constCast(&[_]f32{10, 20}));
+    q4.divScalarInto(q2, &out);
+    try zatest.expectApproxEqAbsIter(@constCast(&[_]f32{5, 10}), out.value, 1e-15);
 }
 
 test "pow" {
