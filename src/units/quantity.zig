@@ -985,7 +985,7 @@ pub fn Quantity(comptime T: type, comptime U: Unit) type {
             const convert_scale = U.scale / unit_type.scale;
             const self_offset: f64 = U.offset orelse 0;
             const unit_offset: f64 = unit_type.offset orelse 0;
-            const convert_offset = self_offset - unit_offset;
+            const convert_offset = (self_offset - unit_offset) / unit_type.scale;
             switch (inner_type) {
                 .slice => {
                     const scalar_type: type = getInnerTypeScalarType(T);
@@ -1006,7 +1006,10 @@ pub fn Quantity(comptime T: type, comptime U: Unit) type {
         }
 
         pub fn toIntoWithEquivalency(self: *const Self, comptime unit_type: Unit, out: *Quantity(T, unit_type), comptime equivalency: Equivalency, args: anytype) void {
-            equivalency.convertInto(T, U, self, unit_type, out, args);
+            switch (inner_type) {
+                .slice => equivalency.convertInto(T, U, self, unit_type, out, args),
+                else => out.value = equivalency.convert(T, U, self, unit_type, args).value,
+            }
         }
 
         // Decomposes the unit into base units of the given `system` (e.g. expanding
