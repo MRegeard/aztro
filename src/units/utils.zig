@@ -60,3 +60,10 @@ pub inline fn assertIsQuantity(comptime T: type) void {
     }
     return;
 }
+
+pub inline fn assertIsScalarQuantity(comptime T: type) void {
+    assertIsQuantity(T);
+    if (@typeInfo(T.value_type) != .float) {
+        @compileError("Expected a Scalar Quantity type.");
+    }
+}
