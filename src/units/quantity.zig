@@ -954,6 +954,56 @@ pub fn Quantity(comptime T: type, comptime U: Unit) type {
             }
         }
 
+        /// Returns a new quantity with every component negated, leaving `self` unchanged.
+        /// The unit is preserved. Not available for slice value types, which have no
+        /// backing buffer to return into — use `negInPlace` or `negInto` for those.
+        pub fn neg(self: *const Self) Self {
+            switch (inner_type) {
+                .scalar, .vector => return .init(-self.value),
+                .array => {
+                    var new_arr: T = undefined;
+                    for (self.value, &new_arr) |s, *n| {
+                        n.* = -s;
+                    }
+                    return .init(new_arr);
+                },
+                .slice => @compileError("Cannot negate Slice, use negInPlace or negInto instead."),
+            }
+            unreachable;
+        }
+
+        /// Negates every component of `self` in place. Works for all value types,
+        /// including slices. The unit is unchanged.
+        pub fn negInPlace(self: *Self) void {
+            switch (inner_type) {
+                .scalar, .vector => self.value = -self.value,
+                .array => {
+                    for (&self.value) |*s| {
+                        s.* = -s.*;
+                    }
+                },
+                .slice => {
+                    for (self.value) |*s| {
+                        s.* = -s.*;
+                    }
+                },
+            }
+        }
+
+        /// Writes the component-wise negation of `self` into `out`, preserving the unit.
+        /// For slices, `self` and `out` must have equal length; they may alias (the
+        /// operation is element-wise). Non-slice types delegate to `neg`.
+        pub fn negInto(self: *const Self, out: *Self) void {
+            switch (inner_type) {
+                .slice => {
+                    for (self.value, out.value) |s, *o| {
+                        o.* = -s;
+                    }
+                },
+                else => out.* = self.neg(),
+            }
+        }
+
         /// Sets every element to `value`, broadcasting the scalar across vector,
         /// array, and slice storage.
         pub fn setScalarValue(self: *Self, value: getInnerTypeScalarType(T)) void {
@@ -1780,6 +1830,52 @@ test "cbrtInto" {
     q1.cbrtInto(&q_cbrt);
     try zatest.expectApproxEqAbsIter(&[2]f32{ 3, 4 }, q_cbrt.value, 1e-15);
     try testing.expectEqual(si.m.cbrt(), @TypeOf(q_cbrt).unit);
+}
+
+test "neg methods" {
+    // scalar: neg returns, negInPlace mutates
+    const q1: Quantity(f64, si.m) = .init(5);
+    const q1n = q1.neg();
+    try testing.expectApproxEqAbs(-5, q1n.value, 1e-15);
+    try testing.expectEqual(si.m, q1n.getUnit());
+    try testing.expectApproxEqAbs(5, q1.value, 1e-15); // original untouched
+
+    var q1m: Quantity(f64, si.m) = .init(5);
+    q1m.negInPlace();
+    try testing.expectApproxEqAbs(-5, q1m.value, 1e-15);
+
+    // vector
+    var q2: Quantity(@Vector(3, f32), si.s) = .init(.{ 1, -2, 3 });
+    q2.negInPlace();
+    const v2: [3]f32 = q2.value;
+    try zatest.expectApproxEqAbsIter([3]f32{ -1, 2, -3 }, v2, 1e-15);
+
+    // array: neg (out-of-place) and negInPlace
+    const q3: Quantity([2]f64, si.kg) = .init(.{ 4, -6 });
+    const q3n = q3.neg();
+    try zatest.expectApproxEqAbsIter([2]f64{ -4, 6 }, q3n.value, 1e-15);
+    try zatest.expectApproxEqAbsIter([2]f64{ 4, -6 }, q3.value, 1e-15); // original untouched
+
+    var q3m: Quantity([2]f64, si.kg) = .init(.{ 4, -6 });
+    q3m.negInPlace();
+    try zatest.expectApproxEqAbsIter([2]f64{ -4, 6 }, q3m.value, 1e-15);
+
+    // slice: negInto (distinct buffers) and negInPlace
+    const q4: Quantity([]f64, si.Hz) = .init(@constCast(&[3]f64{ 7, -8, 9 }));
+    var buf: [3]f64 = undefined;
+    var q4n: Quantity([]f64, si.Hz) = .init(&buf);
+    q4.negInto(&q4n);
+    try zatest.expectApproxEqAbsIter(@constCast(&[3]f64{ -7, 8, -9 }), q4n.value, 1e-15);
+    try testing.expectEqual(si.Hz, q4n.getUnit());
+
+    var q5: Quantity([]f64, si.Hz) = .init(@constCast(&[3]f64{ 7, -8, 9 }));
+    q5.negInPlace();
+    try zatest.expectApproxEqAbsIter(@constCast(&[3]f64{ -7, 8, -9 }), q5.value, 1e-15);
+
+    // negInto aliasing: self === out should still be correct (element-wise)
+    var q6: Quantity([]f64, si.Hz) = .init(@constCast(&[2]f64{ 1, -2 }));
+    q6.negInto(&q6);
+    try zatest.expectApproxEqAbsIter(@constCast(&[2]f64{ -1, 2 }), q6.value, 1e-15);
 }
 
 test "to" {
