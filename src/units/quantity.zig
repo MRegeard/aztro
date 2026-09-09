@@ -29,10 +29,20 @@ const us = @import("units_storage.zig");
 ///
 /// Operations families follow a naming convention:
 /// - `<op>`        returns a new `Quantity` (chainable; not available for slices,
-///               which have no owned storage to return).
+///                 which have no owned storage to return).
 /// - `<op>InPlace` mutates `self` in place and returns `void`.
 /// - `<op>Into`    writes the result into a caller-provided `out` buffer; this is the
-///               required form for slice-backed quantities.
+///                 required form for slice-backed quantities.
+///
+/// Expected input types for the right-hand side of the operation follow a convention:
+/// - `<op>`            expect a `Quantity` with value type `T`.
+/// - `<op>Value`       expect a `T`.
+/// - `<op>Scalar`      expect a scalar `Quantity` i.e. which value type is a scalar (float).
+/// - `<op>ScalarValue` expect a scalar `T` i.e. a float. Cast the input float to the
+///                     float type of `Quantity`.
+///
+/// Both convention are combined to give the methods name.
+///
 pub fn Quantity(comptime T: type, comptime U: Unit) type {
     // Classifies the storage type `T` into one of four shapes. Each method
     // switches on this to select the right element-wise strategy.
@@ -294,6 +304,25 @@ pub fn Quantity(comptime T: type, comptime U: Unit) type {
             }
         }
 
+        /// Adds a scalar value (raw float value), returning a new quantity. Unit is
+        /// left unchanged.
+        pub fn addScalarValue(self: *const Self, val: getInnerTypeScalarType(T)) Self {
+            const q: Quantity(getInnerTypeScalarType(T), unitMod.UNITLESS) = .init(val);
+            return self.addScalar(q);
+        }
+
+        /// In-place variant of `addScalarValue`.
+        pub fn addScalarValueInPlace(self: *Self, val: getInnerTypeScalarType(T)) void {
+            const q: Quantity(getInnerTypeScalarType(T), unitMod.UNITLESS) = .init(val);
+            self.addScalarInPlace(q);
+        }
+
+        /// Buffer-output variant of `addScalarValue`.
+        pub fn addScalarValueInto(self: *const Self, val: getInnerTypeScalarType(T), out: *Self) void {
+            const q: Quantity(getInnerTypeScalarType(T), unitMod.UNITLESS) = .init(val);
+            self.addScalarInto(q, out);
+        }
+
         /// Subtracts two quantities of the same unit, returning a new quantity.
         /// Slices have no owned storage to return, so use `subInPlace` or `subInto`.
         pub fn sub(self: *const Self, other: Self) Self {
@@ -441,6 +470,25 @@ pub fn Quantity(comptime T: type, comptime U: Unit) type {
             }
         }
 
+        /// Subtracts a scalar value (raw float value), returning a new quantity. Unit is
+        /// left unchanged.
+        pub fn subScalarValue(self: *const Self, val: getInnerTypeScalarType(T)) Self {
+            const q: Quantity(getInnerTypeScalarType(T), unitMod.UNITLESS) = .init(val);
+            return self.subScalar(q);
+        }
+
+        /// In-place variant of `subScalarValue`.
+        pub fn subScalarValueInPlace(self: *Self, val: getInnerTypeScalarType(T)) void {
+            const q: Quantity(getInnerTypeScalarType(T), unitMod.UNITLESS) = .init(val);
+            self.subScalarInPlace(q);
+        }
+
+        /// Buffer-output variant of `subScalarValue`.
+        pub fn subScalarValueInto(self: *const Self, val: getInnerTypeScalarType(T), out: *Self) void {
+            const q: Quantity(getInnerTypeScalarType(T), unitMod.UNITLESS) = .init(val);
+            self.subScalarInto(q, out);
+        }
+
         /// Multiplies two quantities, producing a quantity whose unit is the product
         /// `U * other.unit`. `other` may carry any unit but must have the same value
         /// storage type `T`. Slices use `mulInto`.
@@ -567,6 +615,40 @@ pub fn Quantity(comptime T: type, comptime U: Unit) type {
             }
         }
 
+        /// Multiplies by scalar value (raw float value), returning a new quantity. Unit is
+        /// left unchanged.
+        pub fn mulScalarValue(self: *const Self, val: getInnerTypeScalarType(T)) Self {
+            const q: Quantity(getInnerTypeScalarType(T), unitMod.UNITLESS) = .init(val);
+            return self.mulScalar(q);
+        }
+
+        /// In-place variant of `mulScalarValue`.
+        pub fn mulScalarValueInPlace(self: *Self, val: getInnerTypeScalarType(T)) void {
+            switch (inner_type) {
+                .scalar => self.value *= val,
+                .vector => {
+                    const other_value_vec: T = @splat(val);
+                    self.value *= other_value_vec;
+                },
+                .array => {
+                    for (&self.value) |*s| {
+                        s.* *= val;
+                    }
+                },
+                .slice => {
+                    for (self.value) |*s| {
+                        s.* *= val;
+                    }
+                },
+            }
+        }
+
+        /// Buffer-output variant of `mulScalarValue`.
+        pub fn mulScalarValueInto(self: *const Self, val: getInnerTypeScalarType(T), out: *Self) void {
+            const q: Quantity(getInnerTypeScalarType(T), unitMod.UNITLESS) = .init(val);
+            self.mulScalarInto(q, out);
+        }
+
         /// Divides two quantities, producing a quantity whose unit is the quotient
         /// `U / other.unit`. `other` may carry any unit but must have the same value
         /// storage type `T`. Slices use `divInto`.
@@ -686,6 +768,40 @@ pub fn Quantity(comptime T: type, comptime U: Unit) type {
                     out.value = self.divScalar(other).value;
                 },
             }
+        }
+
+        /// Divides by scalar value (raw float value), returning a new quantity. Unit is
+        /// left unchanged.
+        pub fn divScalarValue(self: *const Self, val: getInnerTypeScalarType(T)) Self {
+            const q: Quantity(getInnerTypeScalarType(T), unitMod.UNITLESS) = .init(val);
+            return self.divScalar(q);
+        }
+
+        /// In-place variant of `divScalarValue`.
+        pub fn divScalarValueInPlace(self: *Self, val: getInnerTypeScalarType(T)) void {
+            switch (inner_type) {
+                .scalar => self.value /= val,
+                .vector => {
+                    const other_value_vec: T = @splat(val);
+                    self.value /= other_value_vec;
+                },
+                .array => {
+                    for (&self.value) |*s| {
+                        s.* /= val;
+                    }
+                },
+                .slice => {
+                    for (self.value) |*s| {
+                        s.* /= val;
+                    }
+                },
+            }
+        }
+
+        /// Buffer-output variant of `divScalarValue`.
+        pub fn divScalarValueInto(self: *const Self, val: getInnerTypeScalarType(T), out: *Self) void {
+            const q: Quantity(getInnerTypeScalarType(T), unitMod.UNITLESS) = .init(val);
+            self.divScalarInto(q, out);
         }
 
         /// Raises the quantity to a comptime integer power, scaling the unit by the
@@ -1005,9 +1121,13 @@ pub fn Quantity(comptime T: type, comptime U: Unit) type {
             }
         }
 
+        // TODO: document that self buffer and out buffer must be different.
         pub fn toIntoWithEquivalency(self: *const Self, comptime unit_type: Unit, out: *Quantity(T, unit_type), comptime equivalency: Equivalency, args: anytype) void {
             switch (inner_type) {
-                .slice => equivalency.convertInto(T, U, self, unit_type, out, args),
+                .slice => {
+                    std.debug.assert(self.value.ptr != out.value.ptr);
+                    equivalency.convertInto(T, U, self, unit_type, out, args);
+                },
                 else => out.value = equivalency.convert(T, U, self, unit_type, args).value,
             }
         }
@@ -1230,6 +1350,26 @@ test "add scalar methods" {
     try zatest.expectApproxEqAbsIter(@constCast(&[_]f32{ 7, 8, 9, 10 }), added_2.value, 1e-15);
 }
 
+test "add scalar value methods" {
+    const q1: Quantity(f64, si.m) = .init(5);
+    const q_add1 = q1.addScalarValue(3);
+    try testing.expectApproxEqAbs(8, q_add1.value, 1e-15);
+    try testing.expectEqual(si.m, q_add1.getUnit());
+
+    var q2: Quantity(@Vector(3, f32), si.s) = .init(.{ 3, 4, 5 });
+    q2.addScalarValueInPlace(10);
+    const val: [3]f32 = q2.value;
+    try zatest.expectApproxEqAbsIter([3]f32{ 13, 14, 15 }, val, 1e-15);
+    try testing.expectEqual(si.s, q2.getUnit());
+
+    var buf: [3]f64 = undefined;
+    const q3: Quantity([]f64, si.Bq) = .init(@constCast(&[3]f64{ 10, 20, 30 }));
+    var q_add3: Quantity([]f64, si.Bq) = .init(&buf);
+    q3.addScalarValueInto(5, &q_add3);
+    try zatest.expectApproxEqAbsIter(@constCast(&[3]f64{ 15, 25, 35 }), q_add3.value, 1e-15);
+    try testing.expectEqual(si.Bq, q_add3.getUnit());
+}
+
 test "sub" {
     //float
     const size1 = Quantity(f64, si.AA).init(12);
@@ -1332,6 +1472,25 @@ test "sub scalar methods" {
     try zatest.expectApproxEqAbsIter(@constCast(&[_]f64{ 13, 23 }), out.value, 1e-15);
 }
 
+test "sub scalar value methods" {
+    const q1: Quantity(f64, si.arcmin) = .init(20);
+    const q_sub1 = q1.subScalarValue(8);
+    try testing.expectApproxEqAbs(12, q_sub1.value, 1e-15);
+    try testing.expectEqual(si.arcmin, q_sub1.getUnit());
+
+    var q2: Quantity([2]f64, us.TeV) = .init(.{ 13, 16 });
+    q2.subScalarValueInPlace(3);
+    try zatest.expectApproxEqAbsIter([2]f64{ 10, 13 }, q2.value, 1e-15);
+    try testing.expectEqual(us.TeV, q2.getUnit());
+
+    var buf: [4]f32 = undefined;
+    const q3: Quantity([]f32, si.deg) = .init(@constCast(&[_]f32{ 7, 8, 9, 10 }));
+    var q_sub3: Quantity([]f32, si.deg) = .init(&buf);
+    q3.subScalarValueInto(6, &q_sub3);
+    try zatest.expectApproxEqAbsIter(@constCast(&[_]f32{ 1, 2, 3, 4 }), q_sub3.value, 1e-15);
+    try testing.expectEqual(si.deg, q_sub3.getUnit());
+}
+
 test "mul" {
     // float
     const size1 = Quantity(f64, si.m).init(10);
@@ -1412,6 +1571,26 @@ test "mul scalar method" {
     try testing.expectEqual(si.deg.mul(si.s), q_mul3.getUnit());
 }
 
+test "mul scalar value methods" {
+    const q1: Quantity(f64, si.mm) = .init(32);
+    const q_mul1 = q1.mulScalarValue(10);
+    try testing.expectApproxEqAbs(320, q_mul1.value, 1e-15);
+    try testing.expectEqual(si.mm, q_mul1.getUnit());
+
+    var q2: Quantity(@Vector(2, f64), si.kg) = .init(.{ 1, 2 });
+    q2.mulScalarValueInPlace(10);
+    const val: [2]f64 = q2.value;
+    try zatest.expectApproxEqAbsIter([2]f64{ 10, 20 }, val, 1e-15);
+    try testing.expectEqual(si.kg, q2.getUnit());
+
+    var buf: [3]f64 = undefined;
+    const q3: Quantity([]f64, si.deg) = .init(@constCast(&[3]f64{ 3, 6, 9 }));
+    var q_mul3: Quantity([]f64, si.deg) = .init(&buf);
+    q3.mulScalarValueInto(-2, &q_mul3); // negative, mirrors the redshift ×-2 step
+    try zatest.expectApproxEqAbsIter(@constCast(&[_]f64{ -6, -12, -18 }), q_mul3.value, 1e-15);
+    try testing.expectEqual(si.deg, q_mul3.getUnit());
+}
+
 test "div" {
     // float
     const size = Quantity(f64, si.m).init(5);
@@ -1480,17 +1659,36 @@ test "div scalar methods" {
     try testing.expectApproxEqAbs(6, divided.value, 1e-15);
     try testing.expectEqual(si.m.div(si.s), divided.getUnit());
 
-    const q3: Quantity(@Vector(3, f64), si.g) = .init(.{4, 6, 8});
+    const q3: Quantity(@Vector(3, f64), si.g) = .init(.{ 4, 6, 8 });
     const divided_2 = q3.divScalar(q2);
     const val: [3]f64 = divided_2.value;
-    const exp: [3]f64 = .{2, 3, 4};
+    const exp: [3]f64 = .{ 2, 3, 4 };
     try zatest.expectApproxEqAbsIter(exp, val, 1e-15);
 
     var buf: [2]f32 = undefined;
     var out: Quantity([]f32, si.Hz.div(si.s)) = .init(&buf);
-    const q4: Quantity([]f32, si.Hz) = .init(@constCast(&[_]f32{10, 20}));
+    const q4: Quantity([]f32, si.Hz) = .init(@constCast(&[_]f32{ 10, 20 }));
     q4.divScalarInto(q2, &out);
-    try zatest.expectApproxEqAbsIter(@constCast(&[_]f32{5, 10}), out.value, 1e-15);
+    try zatest.expectApproxEqAbsIter(@constCast(&[_]f32{ 5, 10 }), out.value, 1e-15);
+}
+
+test "div scalar value methods" {
+    const q1: Quantity(f32, si.m) = .init(12);
+    const q_div1 = q1.divScalarValue(2);
+    try testing.expectApproxEqAbs(6, q_div1.value, 1e-15);
+    try testing.expectEqual(si.m, q_div1.getUnit());
+
+    var q2: Quantity([3]f64, si.g) = .init(.{ 4, 6, 8 });
+    q2.divScalarValueInPlace(2);
+    try zatest.expectApproxEqAbsIter([3]f64{ 2, 3, 4 }, q2.value, 1e-15);
+    try testing.expectEqual(si.g, q2.getUnit());
+
+    var buf: [2]f32 = undefined;
+    const q3: Quantity([]f32, si.Hz) = .init(@constCast(&[_]f32{ 10, 20 }));
+    var q_div3: Quantity([]f32, si.Hz) = .init(&buf);
+    q3.divScalarValueInto(2, &q_div3);
+    try zatest.expectApproxEqAbsIter(@constCast(&[_]f32{ 5, 10 }), q_div3.value, 1e-15);
+    try testing.expectEqual(si.Hz, q_div3.getUnit());
 }
 
 test "pow" {
